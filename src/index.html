@@ -1,22 +1,3031 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <link rel="stylesheet" href="styles.css" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>PakePlus App</title>
-        <script type="module" src="/main.js" defer></script>
-    </head>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tim账本_2.5.2</title>
+    <!-- 引入 Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        /* ========== 样式基础 ========== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            font-family: 'Segoe UI', Roboto, system-ui, -apple-system, sans-serif;
+        }
+        body {
+            background: #1a1a1f;
+            overflow: auto;
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            
+        }
+        .fixed-widget {
+            width: 1080px;
+            height: 330px;
+            background: rgba(28, 28, 32, 0.98);
+            border: none;
+            color: #f0f0f8;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            position: relative;
+            border-radius: 0;
+            overflow: hidden;
+        }
+        .date-separator {
+            color:#8a8ab0; font-size:0.8rem; font-weight:600; padding:5px 8px 2px;
+            border-bottom:1px solid rgba(255,255,255,0.1); background:rgba(0,0,0,0.2); border-radius:20px 20px 0 0;
+        }
+        .edit-input {
+            width:48px; background:#23232a; border:1px solid #5a7a9a; padding:2px 4px;
+            color:white; font-size:0.7rem; text-align:center; border-radius:8px;
+        }
+        
+        /* 隐藏所有number输入框的上下箭头 */
+        input[type=number] {
+            -moz-appearance: textfield;
+            appearance: textfield;
+        }
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
 
-    <body>
-        <main class="container">
-            <h1>Welcome to PakePlus</h1>
+        /* ===== 全局隐藏滚动条（保留滚轮功能） ===== */
+        ::-webkit-scrollbar {
+            width: 0px;
+            height: 0px;
+            background: transparent;
+            display: none;
+        }
+        * {
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        .buttons-panel1, .bill-list1, .button-grid, .external-action-buttons {
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        .buttons-panel1::-webkit-scrollbar, .bill-list1::-webkit-scrollbar, 
+        .button-grid::-webkit-scrollbar, .external-action-buttons::-webkit-scrollbar {
+            display: none;
+            width: 0;
+            height: 0;
+        }
 
-            <form class="row" id="greet-form">
-                <input id="greet-input" placeholder="Enter a name..." />
-                <button type="submit">Greet</button>
-            </form>
-            <p id="greet-msg"></p>
-        </main>
-    </body>
+        /* 密码弹窗 */
+        .password-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); backdrop-filter: blur(4px);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 1000; border-radius: 0;
+        }
+        .password-dialog {
+            background: #2a2a34; border: 1px solid #4a4a5a; padding: 15px; width: 220px;
+            text-align: center; border-radius: 20px;
+        }
+        .password-dialog h3 { color: #e0e0f0; margin-bottom: 10px; font-size: 1rem; }
+        .password-input {
+            width: 100%; padding: 8px; background: #1e1e26; border: 1px solid #4a4a5a;
+            color: white; font-size: 0.95rem; text-align: center; margin-bottom: 8px;
+            outline: none; border-radius: 30px;
+        }
+        .password-buttons { display: flex; gap: 8px; justify-content: center; margin-bottom: 5px; }
+        .password-btn {
+            padding: 6px 15px; border: none; cursor: pointer; font-weight: 600;
+            min-width: 70px; font-size: 0.85rem; border-radius: 30px;
+            color: white !important;
+            transition: transform 0.1s, background-color 0.1s, box-shadow 0.1s;
+        }
+        .password-btn:hover {
+            transform: scale(1.05);
+        }
+        .password-btn.confirm { background: #3f5e2b; border:1px solid #7da064; }
+        .password-btn.confirm:hover { background: #4f7a3a; box-shadow: 0 0 8px #7da064; }
+        .password-btn.cancel { background: #5a2a2a; border:1px solid #a55; }
+        .password-btn.cancel:hover { background: #7a3a3a; box-shadow: 0 0 8px #a55; }
+        .password-hint { color: #aaa; font-size:0.7rem; border-top:1px solid #4a4a5a; padding-top:6px; }
+        .password-error { color:#ff6b6b; font-size:0.75rem; min-height:16px; }
+
+        /* 顶部标题栏 */
+        .title-bar1 {
+            padding: 5px 12px; display: flex; align-items: center; justify-content: space-between;
+            flex-shrink:0; width: 380px; margin-top:1px; height:37px;
+        }
+        .title-left span {
+            font-weight:600; font-size:0.9rem; background:rgba(255,255,255,0.1);
+            padding:4px 10px; border-radius:30px;
+        }
+        .title-right1 { display: flex; align-items: center; gap: 8px; }
+        .top-cost-toggle1 {
+            background:#4a3a6a; border:1px solid #7a5a9c; padding:4px 14px;
+            font-size:0.85rem; color:white; border-radius:30px; cursor:pointer; font-weight:600;
+            display: none; min-width: 70px; text-align: center;
+            transition: transform 0.1s, background-color 0.1s, border-color 0.1s, box-shadow 0.1s;
+        }
+        .top-cost-toggle1:hover {
+            transform: scale(1.05);
+            background: #5e4a82;
+            border-color: #9f7aff;
+            box-shadow: 0 0 8px #9f7aff;
+        }
+        .top-cost-toggle1:active {
+            transform: scale(0.98);
+        }
+        .top-cost-toggle1.cost-mode { background: #3a6a8a; border-color: #5a9aca; color: #ffffff; font-weight: 700; box-shadow: 0 0 6px #5a9aca; }
+        .top-cost-toggle1.cost-mode:hover { background: #4a7a9a; border-color: #7ab0e0; box-shadow: 0 0 10px #5a9aca; }
+        .top-cost-toggle1.sales-mode { background: #8a6a4a; border-color: #ca9a5a; color: #ffffff; font-weight: 700; box-shadow: 0 0 6px #ca9a5a; }
+        .top-cost-toggle1.sales-mode:hover { background: #9a7a5a; border-color: #e0b07a; box-shadow: 0 0 10px #ca9a5a; }
+        .setting-mode .top-cost-toggle1 { display: inline-block; }
+
+        .confirm-top-btn1 {
+            background: #aa4444; border:1px solid #cc7777; padding:4px 14px; font-size:0.85rem;
+            font-weight:600; color:white; box-shadow:0 2px 0 #6a2a2a; cursor:pointer;
+            min-width:60px; text-align:center; border-radius:30px;
+            transition: transform 0.1s, box-shadow 0.1s, background-color 0.1s;
+        }
+        .confirm-top-btn1:hover {
+            transform: scale(1.05);
+            background: #bb5555;
+            box-shadow: 0 4px 0 #6a2a2a;
+        }
+        .confirm-top-btn1:active { transform:translateY(2px); box-shadow:none; }
+        .confirm-top-btn1.setting-mode { background:#5a4a7a; border-color:#9f7aff; box-shadow:0 2px 0 #3a2a5a; }
+        .confirm-top-btn1.setting-mode:hover { background: #6a5a8a; box-shadow:0 4px 0 #3a2a5a; }
+
+        .selected-total1 {
+            background:#2c2c34; border:1px solid #4a4a5a; padding:4px 8px; font-size:0.85rem;
+            font-weight:700; color:#ffd966; min-width:65px; text-align:center; border-radius:30px;
+        }
+        .setting-mode .selected-total1 { display: none; }
+
+        /* 自定义按钮网格区域 */
+        .buttons-panel1 {
+            padding:10px 12px 8px;
+            display:flex;
+            flex-direction:column;
+            gap:8px;
+            border:1px solid rgba(255,255,255,0.06);
+            background:rgba(0,0,0,0.15);
+            border-radius: 12px;
+            flex-shrink:0;
+            width: 390px;
+            margin: 2px 0px 0px 0px;
+            height:138px;
+            overflow-y:auto;
+        }
+        .button-grid {
+            display:grid;
+            grid-template-columns:repeat(3,1fr);
+            gap:6px;
+        }
+        /* 柱状图容器 - 精确390*105 */
+        .button-grid1 {
+            width: 390px;
+            height: 105px;
+            margin-top:8px;
+            border-radius: 12px;
+            padding: 6px 8px 0 5px;
+            border: 1px solid rgba(255,255,255,0.06);
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.3);
+        }
+        /* 图表内部容器 */
+        #monthlyChartContainer {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        canvas#monthlyChart {
+            display: block;
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        /* 四个操作按钮区域 */
+        .external-action-buttons {
+            display: none;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            padding: 8px 12px 6px 12px;
+            width: 390px;
+            flex-shrink: 0;
+            background: transparent;
+            margin-bottom:1px;
+        }
+        .setting-mode .external-action-buttons {
+            display: grid;
+        }
+
+        .action-btn-external {
+            background: #2c4c6b;
+            border: 1px solid #3d6b94;
+            padding: 6px 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: white;
+            cursor: pointer;
+            text-align: center;
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 28px;
+            transition: transform 0.1s, background-color 0.1s, border-color 0.1s, box-shadow 0.1s;
+        }
+        .action-btn-external:hover {
+            background: #3d6b94;
+            border-color: #5a8ab5;
+            transform: scale(1.02);
+            box-shadow: 0 0 8px #5a8ab5;
+        }
+        .action-btn-external:active {
+            transform: scale(0.98);
+            background: #1e3a52;
+        }
+        .action-btn-external.add-repair {
+            background: #4a3a6a;
+            border-color: #7a5a9c;
+        }
+        .action-btn-external.add-repair:hover {
+            background: #5e4a82;
+            border-color: #9f7aff;
+            box-shadow: 0 0 8px #9f7aff;
+        }
+        .action-btn-external.export {
+            background: #3a4a6a;
+            border-color: #5a7a9a;
+        }
+        .action-btn-external.export:hover {
+            background: #4a5e82;
+            border-color: #7a9ac0;
+            box-shadow: 0 0 8px #7a9ac0;
+        }
+        .action-btn-external.import {
+            background: #4a3a5a;
+            border-color: #7a5a8a;
+        }
+        .action-btn-external.import:hover {
+            background: #5e4a72;
+            border-color: #9a7ab0;
+            box-shadow: 0 0 8px #9a7ab0;
+        }
+
+        /* 底部版权栏 */
+        .copyright-bar1 {
+            padding: 6px 22px 6px 12px;
+            background: transparent;
+            font-size: 0.7rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+            width: 390px;
+        }
+        .copyright-left1 { opacity:0.7; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .footer-actions1 { display:flex; align-items:center; gap:6px; }
+
+        .profit-footer-btn1, .copyright-back-btn1, .settings-footer-btn1 {
+            background: #5a4a79;
+            border: 1px solid #9b7ffa;
+            color: white;
+            font-size: 0.7rem;
+            padding: 4px 10px;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: transform 0.1s, background-color 0.1s, box-shadow 0.1s;
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            font-weight: 500;
+        }
+        .profit-footer-btn1:hover, .copyright-back-btn1:hover, .settings-footer-btn1:hover {
+            background: #5a4a79;
+            border-color: #9a9ab0;
+            transform: scale(1.02);
+            box-shadow: 0 0 8px #9a9ab0;
+        }
+        .profit-footer-btn1:active, .copyright-back-btn1:active, .settings-footer-btn1:active {
+            transform: scale(0.98);
+        }
+        .profit-footer-btn1.active { background:#5a4a7a; border-color:#9f7aff; color:white; }
+        .profit-footer-btn1.active:hover { background: #6a5a8a; box-shadow: 0 0 8px #9f7aff; }
+        .setting-mode .profit-footer-btn1 { display: none; }
+        .copyright-back-btn1 { display: none; }
+        .setting-mode .copyright-back-btn1 { display: flex; }
+        .setting-mode .settings-footer-btn1 { display: none; }
+
+        /* 账目列表区域 - 设置模式下可以正常点击 */
+        .list-section1 {
+            padding:4px 12px 12px;
+            flex:1;
+            display:flex;
+            flex-direction:column;
+            min-height:0;
+            width: 380px;
+            height:330px;
+            pointer-events: auto;
+        }
+        .setting-mode .list-section1 {
+            pointer-events: auto !important;
+            opacity: 1;
+        }
+
+        .bill-list1 {
+            background:rgba(0,0,0,0.25);
+            padding:3px;
+            flex:1;
+            overflow-y:auto;
+            min-height:0;
+            border-radius:12px;
+            border:1px solid rgba(255,255,255,0.06);
+        }
+
+        .stats-row1 {
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            margin:3px 3px 6px 3px;
+            color:#aaa;
+            font-size:0.75rem;
+        }
+        .stats-left1 { display:flex; gap:4px; align-items:center; }
+        .stats-btn1 {
+            background:#2a2a34;
+            border:1px solid #4a4a5a;
+            padding:4px 8px;
+            font-size:0.75rem;
+            cursor:pointer;
+            min-width:30px;
+            text-align:center;
+            border-radius:30px;
+            transition: transform 0.1s, background-color 0.1s, border-color 0.1s, box-shadow 0.1s;
+        }
+        .stats-btn1:hover {
+            background: #3d3d4a;
+            border-color: #6a6a7a;
+            transform: scale(1.05);
+            box-shadow: 0 0 8px #6a6a7a;
+        }
+        .stats-btn1:active {
+            transform: scale(0.95);
+        }
+        .stats-btn1.active {
+            background: #5a4a7a;
+            border-color: #9f7aff;
+            color: white;
+        }
+        .stats-btn1.active:hover {
+            background: #6a5a8a;
+            box-shadow: 0 0 8px #9f7aff;
+        }
+        .stats-display1 {
+            background:#1e1e26;
+            border:1px solid #4b4b5a;
+            padding:4px 8px;
+            font-size:0.8rem;
+            font-weight:600;
+            color:#b3d0ff;
+            min-width:90px;
+            text-align:center;
+            border-radius:30px;
+            transition: all 0.1s;
+        }
+        .pagination1 { display:flex; gap:2px; align-items:center; }
+        .page-btn1 {
+            background:#2a2a34;
+            border:1px solid #4a4a5a;
+            padding:2px 4px;
+            font-size:0.65rem;
+            cursor:pointer;
+            min-width:20px;
+            text-align:center;
+            border-radius:20px;
+            transition: transform 0.1s, background-color 0.1s, box-shadow 0.1s;
+        }
+        .page-btn1:hover {
+            background: #3d3d4a;
+            transform: scale(1.05);
+            box-shadow: 0 0 8px #6a6a7a;
+        }
+        .page-btn1:active {
+            transform: scale(0.95);
+        }
+        .page-info { color:#b0b0c0; min-width:28px; text-align:center; font-size:0.65rem; }
+
+        .cost-btn {
+            background:#31313a; border:1px solid #4a4a55; padding:6px 4px; font-size:0.8rem;
+            font-weight:500; color:#eaeaf2; cursor:pointer; transition:0.08s; display:flex;
+            align-items:center; justify-content:center; gap:3px; min-width:0; width:100%;
+            height:35px; white-space:nowrap; position:relative; border-radius:30px;
+        }
+        .cost-btn:hover { background:#3d3d48; border-color:#6a6a7a; transform:scale(1.02); box-shadow: 0 0 8px #6a6a7a; }
+        .cost-btn:active { background:#4b4b58; transform:scale(0.98); }
+        .btn-name { color:#eaeaf2; font-size:0.8rem; font-weight:500; }
+        .btn-price { color:#ffb85c; font-size:0.75rem; font-weight:600; }
+        .btn-cost-price { color:#7aa5ff; font-size:0.7rem; font-weight:600; }
+        .repair-btn { background:#31313a; border-color:#4a4a55; }
+        .repair-input {
+            width:48px; background:#23232a; border:1px solid #5a4a7a; padding:4px;
+            color:#ffb85c; font-size:0.7rem; font-weight:600; text-align:center; outline:none; border-radius:30px;
+        }
+        .setting-mode .cost-btn { padding:5px 3px; cursor:grab; }
+        .setting-mode .btn-name-input {
+            display:inline-block; background:#23232a; border:1px solid #5a4a7a; padding:4px;
+            color:white; font-size:0.7rem; text-align:center; width:50px; outline:none;
+            margin:0 1px; border-radius:20px;
+        }
+        .setting-mode .btn-dual-input {
+            display:inline-block; background:#23232a; border:1px solid #7a5a9c; padding:4px;
+            color:white; font-size:0.7rem; text-align:center; width:40px; outline:none;
+            margin:0 1px; border-radius:20px;
+        }
+        .setting-mode .btn-dual-input.sales-input-style { background:#23232a; border-color:#7a5a9c; color:#ffb85c; }
+        .setting-mode .btn-dual-input.cost-input-style { background:#23232a; border-color:#3a8a9c; color:#ffb85c; }
+        .setting-mode .delete-btn {
+            display:flex; position:absolute; top:-5px; right:-5px; width:14px; height:14px;
+            background:#aa4444; color:white; font-size:9px; align-items:center; justify-content:center;
+            border:1px solid #ff8888; cursor:pointer; border-radius:50%;
+        }
+        .cost-btn.selected { background:#5a4a7a; border-color:#9f7aff; box-shadow:0 0 8px #7a5acb; }
+        .cost-btn.selected .btn-name { color:white; }
+        .cost-btn.selected .btn-price { color:#ffe69b; }
+        @keyframes blinkRed { 50% { background:#aa4444; border-color:#ff8888; transform:scale(1.05); } }
+        .cost-btn.blink { animation:blinkRed 0.3s ease-in-out; }
+
+        .bill-item {
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            padding:4px 6px;
+            border-bottom:1px solid rgba(255,255,255,0.05);
+            font-size:0.75rem;
+            min-height:30px;
+        }
+        .bill-left {
+            display:flex;
+            gap:10px;
+            align-items:center;
+            flex:1;
+            flex-wrap:wrap;
+			
+        }
+        .bill-name { 
+            color:#e0e0f0; 
+            min-width:45px; 
+            font-weight:500; 
+        }
+        .bill-price, .bill-cost-price, .bill-profit {
+            width:45px;
+            text-align:left;
+            font-weight:600;
+			white-space:nowrap;
+			
+        }
+        .bill-price { 
+            color:#ffb85c; 
+        }
+        .bill-cost-price { 
+            color:#7aa5ff; 
+			
+        }
+        .bill-profit { 
+            color:#7ae07a; 
+        }
+        .bill-datetime {
+            color:#8a8ab0;
+            font-size:0.6rem;
+            min-width:90px;
+            text-align:right;
+            margin-left: auto;
+            margin-right: 5px;
+        }
+        .delete-area {
+            display:flex;
+            gap:2px;
+            flex-shrink:0;
+            align-items:center;
+            margin-left: 5px;
+        }
+
+        .delete-trigger, .edit-trigger {
+            background:#5a2a2a; width:16px; height:16px; display:flex; align-items:center; justify-content:center;
+            color:white; font-size:0.6rem; border:1px solid #a55; border-radius:2px; cursor:pointer;
+            line-height:1; font-weight:500;
+            transition: transform 0.1s, background-color 0.1s;
+        }
+        .delete-trigger:hover, .edit-trigger:hover {
+            background: #7a3a3a;
+            transform: scale(1.1);
+        }
+        .delete-confirm-btn, .delete-cancel-btn, .edit-confirm-btn, .edit-cancel-btn {
+            background:#5a2a2a; border:1px solid #a55; padding:1px 4px; font-size:0.7rem; color:white; cursor:pointer;
+            min-width:28px; text-align:center; border-radius:8px; height:20px; line-height:16px; font-weight:500;
+            transition: transform 0.1s, background-color 0.1s;
+        }
+        .delete-confirm-btn:hover, .edit-confirm-btn:hover {
+            background: #7a3a3a;
+            transform: scale(1.05);
+        }
+        .delete-cancel-btn, .edit-cancel-btn { background:#3a3a4a; border-color:#6a6a8a; }
+        .delete-cancel-btn:hover, .edit-cancel-btn:hover {
+            background: #5a5a6a;
+            transform: scale(1.05);
+        }
+
+        .no-bills { color:#777; text-align:center; padding:15px; font-style:italic; }
+        .custom-confirm-overlay { position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); backdrop-filter:blur(3px); display:flex; justify-content:center; align-items:center; z-index:2000; }
+        .custom-confirm-dialog { background:#2a2a34; border:1px solid #7a5acb; padding:20px; width:260px; text-align:center; border-radius:20px; }
+        .custom-confirm-buttons { display:flex; gap:12px; justify-content:center; }
+        .custom-confirm-btn { padding:6px 20px; border:none; cursor:pointer; font-weight:600; border-radius:30px; min-width:80px; color:white; transition: transform 0.1s, background-color 0.1s; }
+        .custom-confirm-btn:hover { transform: scale(1.05); }
+        .custom-confirm-btn.confirm { background:#3f5e2b; border:1px solid #7da064; }
+        .custom-confirm-btn.confirm:hover { background: #4f7a3a; }
+        .custom-confirm-btn.cancel { background:#5a2a2a; border:1px solid #a55; }
+        .custom-confirm-btn.cancel:hover { background: #7a3a3a; }
+
+        .add-button-row, .io-button-row {
+            display: none !important;
+        }
+
+        table {
+            border-collapse: collapse;
+        }
+        td {
+            vertical-align: top;
+        }
+
+        .summary-main-item {
+            display:flex; justify-content:space-between; align-items:center; padding:8px 12px;
+            background:#2a2a34; border-radius:12px; margin-bottom:4px; cursor:pointer;
+            transition: transform 0.1s, background-color 0.1s, box-shadow 0.1s;
+        }
+        .summary-main-item:hover {
+            background: #3a3a44;
+            transform: scale(1.01);
+            box-shadow: 0 0 10px #5a5a6a;
+        }
+        .summary-main-left { display:flex; gap:8px; align-items:baseline; }
+        .summary-main-name { color:#e0e0f0; font-weight:600; font-size:0.85rem; }
+        .summary-main-count { color:#8a8ab0; font-size:0.7rem; }
+        .summary-main-total { color:#ffb85c; font-weight:700; font-size:0.85rem; min-width:70px; text-align:left; }
+        .summary-main-profit { color:#7ae07a; font-weight:700; font-size:0.8rem; margin-left:8px; min-width:60px; text-align:left; }
+        
+        /* 设置模式下隐藏自定义区域 */
+        .setting-mode #zidingyi {
+            display: none !important;
+        }
+
+        /* 新增轮播图样式 - 增强特效 */
+        .slideshow-container {
+            width: 290px;
+            height: 308px;
+            margin: 10px 0px 10px 10px;
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 12px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            background: #1e1e26;
+        }
+        .slideshow-header {
+            padding: 4px 8px;
+            background: rgba(0,0,0,0.3);
+            color: #fff;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            display: flex;
+            align-items: center;
+        }
+        .slideshow-header-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #ffb85c;
+            font-size: 0.8rem;
+            font-weight: 600;
+            outline: none;
+            margin-left: 4px;
+            padding: 2px 4px;
+            border-bottom: 1px solid transparent;
+        }
+        .slideshow-header-input:focus {
+            border-bottom-color: #5a4a7a;
+        }
+        .slideshow-header-input::placeholder {
+            color: #666;
+            font-weight: normal;
+        }
+        .slideshow-main {
+            flex: 1;
+            position: relative;
+            background: #1a1a1f;
+            perspective: 1000px;
+        }
+        #slideshow-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-origin: center center;
+            backface-visibility: hidden;
+        }
+        
+        /* 特效类 */
+        .effect-fade-out {
+            opacity: 0;
+        }
+        .effect-fade-in {
+            opacity: 1;
+        }
+        .effect-zoom-out {
+            transform: scale(0.8);
+            opacity: 0;
+        }
+        .effect-zoom-in {
+            transform: scale(1.2);
+            opacity: 0;
+        }
+        .effect-slide-left {
+            transform: translateX(-100%);
+            opacity: 0;
+        }
+        .effect-slide-right {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        .effect-slide-up {
+            transform: translateY(-100%);
+            opacity: 0;
+        }
+        .effect-slide-down {
+            transform: translateY(100%);
+            opacity: 0;
+        }
+        .effect-rotate {
+            transform: rotate(360deg) scale(0.5);
+            opacity: 0;
+        }
+        .effect-flip {
+            transform: rotateY(180deg);
+            opacity: 0;
+        }
+        .effect-blur {
+            filter: blur(10px);
+            opacity: 0;
+        }
+        .effect-shake {
+            animation: shake 0.5s ease-in-out;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+        .effect-pulse {
+            animation: pulse 0.8s ease-in-out;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        .effect-3d-spin {
+            transform: rotateY(360deg) rotateX(10deg);
+            opacity: 0;
+        }
+        .effect-bounce {
+            animation: bounce 0.6s ease;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        .slideshow-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #aaa;
+            font-size: 0.8rem;
+        }
+        .slideshow-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2px 8px;
+            background: rgba(0,0,0,0.2);
+            border-top: 1px solid rgba(255,255,255,0.06);
+            color: white;
+            font-size: 0.9rem;
+        }
+        .slideshow-controls button {
+            background: transparent;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 0.8rem;
+            padding: 0 4px;
+        }
+        .slideshow-controls button:hover {
+            color: #ffb85c;
+        }
+        #slideshow-index {
+            min-width: 40px;
+            text-align: center;
+        }
+        /* 设置行样式 - 修改间距 */
+        .external-settings-row {
+            display: none;
+            padding: 0 12px 0px 12px;
+            width: 390px;
+        }
+        .setting-mode .external-settings-row {
+            display: block;
+        }
+        .settings-flex {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        /* 标题输入区域 - 加大图标和输入框的距离 */
+        .title-input-area {
+            width: 180px;
+            display: flex !important;
+            align-items: center !important;
+            gap: 8px !important;
+            background: #23232a;
+            border: 1px solid #5a4a7a;
+            border-radius: 30px;
+            padding: 2px 4px 2px 12px;
+            height: 30px;
+        }
+
+        /* 速度输入区域 - 加大图标和输入框的距离 */
+        .speed-area {
+            width: 85px;
+            display: flex !important;
+            align-items: center !important;
+            gap: 8px !important;
+            background: #23232a;
+            border: 1px solid #5a4a7a;
+            border-radius: 30px;
+            padding: 2px 4px 2px 12px;
+            height: 30px;
+        }
+ /* 自定义下拉菜单样式 - 强制向上弹出 */
+        .effect-select-area {
+            width: 85px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: #23232a;
+            border: 1px solid #5a4a7a;
+            border-radius: 30px;
+            padding: 2px 4px 2px 8px;
+            position: relative;
+            cursor: pointer;
+            height: 30px;
+         
+        }
+		 .effect-select-area span {
+            color: white;
+            font-size: 0.7rem;
+            white-space: nowrap;
+        }
+        .effect-select-area .selected-value {
+            flex: 1;
+            color: #ffb85c;
+            font-size: 0.7rem;
+            padding: 2px 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .effect-select-area .arrow {
+            color: #ffb85c;
+            font-size: 0.6rem;
+            margin-right: 4px;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        .effect-select-area:hover .arrow {
+            opacity: 1;
+            color: #ffd966;
+        }
+        
+		
+		
+		
+		
+        /* 特效选择区域 - 加大图标和文字的距离 */
+        .effect-select-area {
+            width: 85px;
+            display: flex !important;
+            align-items: center !important;
+            gap: 8px !important;
+            background: #23232a;
+            border: 1px solid #5a4a7a;
+            border-radius: 30px;
+            padding: 2px 4px 2px 12px;
+            position: relative;
+            cursor: pointer;
+            height: 30px;
+        }
+
+        /* 确保图标样式正确 */
+        .title-input-area span,
+        .speed-area span,
+        .effect-select-area span {
+            color: white;
+            font-size: 0.7rem;
+            min-width: 16px;
+            display: inline-block;
+            text-align: center;
+        }
+
+        /* 输入框样式 */
+        .title-input-area input,
+        .speed-area input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #ffb85c;
+            font-size: 0.7rem;
+            outline: none;
+            padding: 2px 0;
+            margin-left: 2px;
+        }
+        
+        /* 提示信息样式 - 默认隐藏 */
+        .status-message {
+            display: none !important;
+        }
+
+        /* 返回按钮样式 */
+        .back-btn {
+            background: #2a2a34;
+            border: 1px solid #4a4a5a;
+            padding: 4px 8px;
+            margin-bottom: 6px;
+            cursor: pointer;
+            text-align: center;
+            color: #b0b0c0;
+            font-size: 0.75rem;
+            border-radius: 16px;
+            transition: all 0.1s;
+        }
+        .back-btn:hover {
+            background: #3a3a44;
+            color: white;
+        }
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 10px;
+            background: rgba(40,40,48,0.6);
+            border-radius: 8px;
+            margin-bottom: 3px;
+            cursor: default;
+			height:20px;
+			font-size: 0.9rem;
+        }
+        .summary-left {
+            display: flex;
+            gap: 12px;
+            align-items: baseline;
+        }
+        .summary-name {
+            color: #e0e0f0;
+            font-weight: 500;
+            font-size: 0.8rem;
+            min-width: 60px;
+        }
+        .summary-count {
+            color: #8a8ab0;
+            font-size: 0.7rem;
+            min-width: 35px;
+        }
+        .summary-total {
+            color: #ffb85c;
+            font-weight: 600;
+            font-size: 0.8rem;
+            min-width: 55px;
+            text-align: left;
+        }
+        .summary-profit {
+            color: #7ae07a;
+            font-weight: 600;
+            font-size: 0.8rem;
+            min-width: 55px;
+            text-align: left;
+        }
+
+        /* 编辑标签样式 */
+        .edit-label {
+            color: #8a8ab0;
+            font-size: 0.65rem;
+            margin: 0 2px;
+        }
+        .bill-left .edit-input {
+            width: 42px;
+            text-align: center;
+        }
+
+        /* ========== 新增/修复的特效下拉菜单样式 (强制向上弹出) ========== */
+        .effect-dropdown {
+    display: none;
+    position: absolute;
+    bottom: 100%;          /* 向上弹出 */
+    left: auto;
+    right: 0;              /* 右对齐父容器 */
+    background: #2a2a34;
+    border: 1px solid #5a4a7a;
+    border-radius: 12px;
+    padding: 4px 0;
+    margin-bottom: 5px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    min-width: 100%;       /* 至少与父容器等宽 */
+    width: max-content;     /* 宽度随内容扩展 */
+    max-width: 240px;       /* 防止过宽，可根据需要调整 */
+    box-shadow: 0 -4px 10px rgba(0,0,0,0.5);
+}
+        .effect-dropdown.show {
+            display: block;
+        }
+        .effect-option {
+            padding: 6px 12px;
+            cursor: pointer;
+            color: #e0e0f0;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            transition: background 0.1s;
+        }
+        .effect-option:hover {
+            background: #3d3d4a;
+        }
+        .effect-option.selected {
+            background: #5a4a7a;
+            color: white;
+        }
+        /* 确保箭头不出现乱码 (使用安全字符) */
+        .effect-select-area .arrow {
+            font-size: 0.7rem;
+            color: #aaa;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+</head>
+<body>
+<div class="fixed-widget" id="fixedWidget">
+    <div style="display:none">
+        <div class="add-button-row"></div>
+        <div class="io-button-row"></div>
+    </div>
+
+    <table width="1080" height="330" border="0">
+        <tr>
+            <!-- 左侧：轮播图区域 -->
+            <td align="left" valign="top">
+                <div class="slideshow-container">
+                    <div class="slideshow-header">
+                        <input type="text" class="slideshow-header-input" id="slideshowTitle" placeholder="轮播标题" value="📷📷📷📷📷📷">
+                    </div>
+                    <div class="slideshow-main">
+                        <img id="slideshow-img" src="" alt="">
+                        <div class="slideshow-placeholder" id="slideshow-placeholder">正在扫描图片...</div>
+                    </div>
+                    <div class="slideshow-controls">
+                        <button id="slideshow-prev">◀</button>
+                        <span id="slideshow-index">0/0</span>
+                        <button id="slideshow-next">▶</button>
+                    </div>
+                </div>
+            </td>
+            <td width="380" valign="top">
+                <div class="list-section1" id="listSection">
+                    <div class="stats-row1">
+                        <div class="stats-left1">
+                            <span class="stats-btn1" id="statsDayBtn" data-range="day">日</span>
+                            <span class="stats-btn1" id="statsMonthBtn" data-range="month">月</span>
+                            <span class="stats-btn1" id="statsYearBtn" data-range="year">年</span>
+                            <span class="stats-display1" id="statsAmount">¥0</span>
+                        </div>
+                        <div class="pagination1">
+                            <span class="page-btn1" id="prevPage">◀</span>
+                            <span class="page-info" id="pageInfo">1/1</span>
+                            <span class="page-btn1" id="nextPage">▶</span>
+                        </div>
+                    </div>
+                    <div class="bill-list1" id="billListContainer">
+                        <div class="no-bills">⏳ 加载中...</div>
+                    </div>
+                </div>
+            </td>
+            <td width="400" valign="top">
+                <div class="title-bar1">
+                    <div class="title-left"><span>📋 Tim账本</span></div>
+                    <div class="title-right1">
+                        <div class="top-cost-toggle1" id="topCostToggleBtn">设置成本</div>
+                        <div class="selected-total1" id="selectedTotal">¥0</div>
+                        <div class="confirm-top-btn1" id="confirmTopBtn">确认记账</div>
+                    </div>
+                </div>
+                <div class="buttons-panel1" id="buttonContainerWrapper">
+                    <div class="button-grid" id="buttonContainer"></div>
+                </div>
+                <!-- 柱状图容器 -->
+                <div class="button-grid1" id="zidingyi">
+                    <div id="monthlyChartContainer">
+                        <canvas id="monthlyChart" width="390" height="105"></canvas>
+                    </div>
+                </div>
+              
+                <div class="external-action-buttons">
+                    <div class="action-btn-external" id="addNormalBtnNew">+ 添加固定项</div>
+                    <div class="action-btn-external add-repair" id="addRepairBtnNew">+ 添加自定义</div>
+                    <div class="action-btn-external export" id="exportDataBtnNew">📤 导出数据库</div>
+                    <div class="action-btn-external import" id="importDataBtnNew">📥 导入数据库</div>
+                </div>
+
+                <!-- 设置行：轮播标题 + 轮播速度 + 特效选择 -->
+                <div class="external-settings-row" id="externalSettingsRow">
+                    <div class="settings-flex">
+                        <div class="title-input-area">
+                            <span>📝</span>
+                            <input type="text" id="slideshowTitleInput" placeholder="轮播标题" value="📷 本地图片轮播">
+                        </div>
+                        <div class="speed-area">
+                            <span>⏱️</span>
+                            <input type="number" id="slideshowSpeedInput" min="0.5" max="10" step="0.5" value="3">
+                        </div>
+						 <div class="effect-select-area" id="effectSelectArea">
+                            <div class="selected-value" id="selectedEffect">淡入淡出</div>
+                            <div class="arrow">▲</div>
+                            <div class="effect-dropdown" id="effectDropdown">
+                                <div class="effect-option" data-value="fade">淡入淡出</div>
+                                <div class="effect-option" data-value="zoom-out">缩小消失</div>
+                                <div class="effect-option" data-value="zoom-in">放大出现</div>
+                                <div class="effect-option" data-value="slide-left">向左滑动</div>
+                                <div class="effect-option" data-value="slide-right">向右滑动</div>
+                                <div class="effect-option" data-value="slide-up">向上滑动</div>
+                                <div class="effect-option" data-value="slide-down">向下滑动</div>
+                                <div class="effect-option" data-value="rotate">旋转</div>
+                                <div class="effect-option" data-value="flip">翻转</div>
+                                <div class="effect-option" data-value="blur">模糊</div>
+                                <div class="effect-option" data-value="shake">震动</div>
+                                <div class="effect-option" data-value="pulse">脉冲</div>
+                                <div class="effect-option" data-value="3d-spin">3D旋转</div>
+                                <div class="effect-option" data-value="bounce">弹跳</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="copyright-bar1" id="copyrightInfo">
+                    <span class="copyright-left1">© 2026 Tim账本 v2.5.2</span>
+                    <div class="footer-actions1">
+                        <div class="profit-footer-btn1" id="profitFooterBtn">查看利润</div>
+                        <div class="copyright-back-btn1" id="copyrightBackBtn"><span>⬅️ 返回</span></div>
+                        <div class="settings-footer-btn1" id="settingsFooterBtn"><span class="gear-icon">⚙️</span><span>设置</span></div>
+                    </div>
+                </div>
+                <input type="file" id="importFile" accept=".json" style="display:none;">
+            </td>
+        </tr>
+    </table>
+
+    <div class="password-overlay" id="passwordOverlay" style="display: none;">
+        <div class="password-dialog">
+            <h3>🔐 请输入密码</h3>
+            <input type="password" class="password-input" id="passwordInput" placeholder="******" maxlength="6">
+            <div class="password-buttons">
+                <button class="password-btn confirm" id="passwordConfirm">确认</button>
+                <button class="password-btn cancel" id="passwordCancel">取消</button>
+            </div>
+            <div class="password-hint">默认密码: 000000</div>
+            <div class="password-error" id="passwordError"></div>
+        </div>
+    </div>
+
+    <div class="custom-confirm-overlay" id="customConfirmOverlay" style="display: none;">
+        <div class="custom-confirm-dialog">
+            <p id="customConfirmMessage">确定操作？</p>
+            <div class="custom-confirm-buttons">
+                <button class="custom-confirm-btn confirm" id="customConfirmOk">确认</button>
+                <button class="custom-confirm-btn cancel" id="customConfirmCancel">取消</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    'use strict';
+    
+    const DB_NAME = 'AccountBookDB';
+    const DB_VERSION = 4; // 升级到版本4，添加轮播存储
+    const STORE_NAME = 'bills';
+    const BUTTON_STORE_NAME = 'buttons';
+    const SLIDESHOW_STORE_NAME = 'slideshow'; // 新增轮播存储仓库
+
+    let db = null;
+    let currentViewLevel = 'main'; // main, month-summary, year-detail
+    let currentDetailsParam = null; // 月份或年份
+
+    const SETTING_PASSWORD = '000000';
+    
+    let billRecords = [];
+    let currentStatsRange = 'day';
+    let editMode = false;
+    let sortableInstance = null;
+    let activeDeleteItem = null;
+    let activeEditItem = null;
+
+    let profitMode = false;
+    let dualModeCost = false;
+
+    let tempButtonConfigs = [];
+    let pendingDeleteIndex = -1;
+
+    let buttonConfigs = [];
+
+    const defaultButtonConfigs = [
+        { name: '续航', price: 130, cost: 115, isRepair: false },
+        { name: 'Lite', price: 150, cost: 115, isRepair: false },
+        { name: 'Oled', price: 180, cost: 165, isRepair: false },
+        { name: '256G', price: 350, cost: 315, isRepair: false },
+        { name: '512G', price: 650, cost: 605, isRepair: false },
+        { name: '1TB', price: 1100, cost: 400, isRepair: false },
+        { name: '快递', price: 20, cost: 10, isRepair: false },
+        { name: '维修', price: 50, cost: 0, isRepair: true },
+        { name: '卖机', price: 1500, cost: 0, isRepair: true }
+    ];
+
+    let currentPage = 1;
+    const PAGE_SIZE = 20;
+
+    // 轮播图相关变量
+    let slideshowImages = [];
+    let currentSlideIndex = 0;
+    let slideshowTimer = null;
+    let slideshowSpeed = 3;
+    let currentEffect = 'fade';
+    let isTransitioning = false;
+
+    // 特效映射
+    const effectNames = {
+        'fade': '淡入淡出',
+        'zoom-out': '缩小消失',
+        'zoom-in': '放大出现',
+        'slide-left': '向左滑动',
+        'slide-right': '向右滑动',
+        'slide-up': '向上滑动',
+        'slide-down': '向下滑动',
+        'rotate': '旋转',
+        'flip': '翻转',
+        'blur': '模糊',
+        'shake': '震动',
+        'pulse': '脉冲',
+        '3d-spin': '3D旋转',
+        'bounce': '弹跳'
+    };
+
+    const billContainer = document.getElementById('billListContainer');
+    const pageInfo = document.getElementById('pageInfo');
+    const prevBtn = document.getElementById('prevPage');
+    const nextBtn = document.getElementById('nextPage');
+    const confirmTopBtn = document.getElementById('confirmTopBtn');
+    const selectedTotal = document.getElementById('selectedTotal');
+    const buttonContainer = document.getElementById('buttonContainer');
+    const statsDayBtn = document.getElementById('statsDayBtn');
+    const statsMonthBtn = document.getElementById('statsMonthBtn');
+    const statsYearBtn = document.getElementById('statsYearBtn');
+    const statsAmount = document.getElementById('statsAmount');
+    
+    const addNormalBtnNew = document.getElementById('addNormalBtnNew');
+    const addRepairBtnNew = document.getElementById('addRepairBtnNew');
+    const exportDataBtnNew = document.getElementById('exportDataBtnNew');
+    const importDataBtnNew = document.getElementById('importDataBtnNew');
+    
+    const importFile = document.getElementById('importFile');
+    const settingsFooterBtn = document.getElementById('settingsFooterBtn');
+    const copyrightBackBtn = document.getElementById('copyrightBackBtn');
+    const profitFooterBtn = document.getElementById('profitFooterBtn');
+    const topCostToggleBtn = document.getElementById('topCostToggleBtn');
+    
+    const passwordOverlay = document.getElementById('passwordOverlay');
+    const passwordInput = document.getElementById('passwordInput');
+    const passwordConfirm = document.getElementById('passwordConfirm');
+    const passwordCancel = document.getElementById('passwordCancel');
+    const passwordError = document.getElementById('passwordError');
+    
+    const customConfirmOverlay = document.getElementById('customConfirmOverlay');
+    const customConfirmMessage = document.getElementById('customConfirmMessage');
+    const customConfirmOk = document.getElementById('customConfirmOk');
+    const customConfirmCancel = document.getElementById('customConfirmCancel');
+
+    // 轮播图元素
+    const slideshowImg = document.getElementById('slideshow-img');
+    const slideshowPlaceholder = document.getElementById('slideshow-placeholder');
+    const slideshowPrev = document.getElementById('slideshow-prev');
+    const slideshowNext = document.getElementById('slideshow-next');
+    const slideshowIndexSpan = document.getElementById('slideshow-index');
+    const slideshowTitle = document.getElementById('slideshowTitle');
+    const slideshowTitleInput = document.getElementById('slideshowTitleInput');
+    const slideshowSpeedInput = document.getElementById('slideshowSpeedInput');
+    
+    // 自定义下拉菜单元素
+    const effectSelectArea = document.getElementById('effectSelectArea');
+    const selectedEffect = document.getElementById('selectedEffect');
+    const effectDropdown = document.getElementById('effectDropdown');
+    const effectOptions = document.querySelectorAll('.effect-option');
+
+    // 柱状图相关
+    const chartCanvas = document.getElementById('monthlyChart');
+    let monthlyChart = null;
+
+    // 图片文件扩展名列表
+    const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.ico'];
+
+    // ---------- 数据库操作函数 ----------
+    function openDB() {
+        return new Promise((resolve, reject) => {
+            console.log('正在打开数据库...');
+            try {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                
+                request.onerror = (e) => {
+                    console.error('数据库打开失败:', e.target.error);
+                    reject(e);
+                };
+                
+                request.onsuccess = (e) => { 
+                    db = e.target.result;
+                    console.log('数据库打开成功');
+                    resolve(db); 
+                };
+                
+                request.onupgradeneeded = (e) => {
+                    console.log('数据库升级/创建中...');
+                    const db = e.target.result;
+                    
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        const store = db.createObjectStore(STORE_NAME, { keyPath: 'timestamp' });
+                        store.createIndex('datetime', 'datetime', { unique: false });
+                        console.log('创建 bills 仓库');
+                    }
+                    
+                    if (!db.objectStoreNames.contains(BUTTON_STORE_NAME)) {
+                        db.createObjectStore(BUTTON_STORE_NAME, { keyPath: 'id' });
+                        console.log('创建 buttons 仓库');
+                    }
+                    
+                    // 新增轮播配置存储仓库
+                    if (!db.objectStoreNames.contains(SLIDESHOW_STORE_NAME)) {
+                        db.createObjectStore(SLIDESHOW_STORE_NAME, { keyPath: 'id' });
+                        console.log('创建 slideshow 仓库');
+                    }
+                };
+            } catch (e) {
+                console.error('数据库打开异常:', e);
+                reject(e);
+            }
+        });
+    }
+
+    function getAllBills() { 
+        return new Promise((resolve, reject) => { 
+            if (!db) {
+                console.warn('数据库未就绪');
+                return resolve([]);
+            }
+            try {
+                const tx = db.transaction(STORE_NAME, 'readonly'); 
+                const store = tx.objectStore(STORE_NAME); 
+                const req = store.getAll(); 
+                req.onsuccess = () => resolve(req.result || []); 
+                req.onerror = (e) => reject(e);
+            } catch (e) {
+                console.error('获取账单失败:', e);
+                resolve([]);
+            }
+        }); 
+    }
+    
+    function addBills(records) { 
+        return new Promise((resolve, reject) => { 
+            if (!db || !records.length) return resolve([]); 
+            try {
+                const tx = db.transaction(STORE_NAME, 'readwrite'); 
+                const store = tx.objectStore(STORE_NAME); 
+                let added = 0; 
+                records.forEach(r => { 
+                    const req = store.add(r); 
+                    req.onsuccess = () => { 
+                        added++; 
+                        if (added === records.length) resolve(records.map(x => x.timestamp)); 
+                    }; 
+                    req.onerror = (e) => { 
+                        console.error('添加账单失败:', e);
+                        added++; 
+                        if (added === records.length) reject(e); 
+                    }; 
+                });
+            } catch (e) {
+                console.error('添加账单异常:', e);
+                reject(e);
+            }
+        }); 
+    }
+    
+    function deleteBill(timestamp) { 
+        return new Promise((resolve, reject) => { 
+            if (!db) return reject('DB not ready'); 
+            try {
+                const tx = db.transaction(STORE_NAME, 'readwrite'); 
+                const store = tx.objectStore(STORE_NAME); 
+                const req = store.delete(timestamp); 
+                req.onsuccess = () => resolve(timestamp); 
+                req.onerror = (e) => reject(e);
+            } catch (e) {
+                reject(e);
+            }
+        }); 
+    }
+    
+    function updateBill(record) { 
+        return new Promise((resolve, reject) => { 
+            if (!db) return reject('DB not ready'); 
+            try {
+                const tx = db.transaction(STORE_NAME, 'readwrite'); 
+                const store = tx.objectStore(STORE_NAME); 
+                const req = store.put(record); 
+                req.onsuccess = () => resolve(record.timestamp); 
+                req.onerror = (e) => reject(e);
+            } catch (e) {
+                reject(e);
+            }
+        }); 
+    }
+    
+    function updateBillNames(oldName, newName) { 
+        return new Promise(async (resolve, reject) => { 
+            try { 
+                const all = await getAllBills(); 
+                const toUpdate = all.filter(r => r.name === oldName); 
+                if (!toUpdate.length) return resolve(0); 
+                const tx = db.transaction(STORE_NAME, 'readwrite'); 
+                const store = tx.objectStore(STORE_NAME); 
+                let updated = 0; 
+                toUpdate.forEach(rec => { 
+                    rec.name = newName; 
+                    const req = store.put(rec); 
+                    req.onsuccess = () => { 
+                        updated++; 
+                        if (updated === toUpdate.length) resolve(updated); 
+                    }; 
+                }); 
+            } catch (e) { 
+                reject(e); 
+            } 
+        }); 
+    }
+    
+    function saveButtonConfigsToDB(configs) { 
+        return new Promise((resolve, reject) => { 
+            if (!db) return reject('DB not ready'); 
+            try {
+                const tx = db.transaction(BUTTON_STORE_NAME, 'readwrite'); 
+                const store = tx.objectStore(BUTTON_STORE_NAME); 
+                store.clear().onsuccess = () => { 
+                    store.add({ id: 1, configs: configs }).onsuccess = () => resolve(); 
+                };
+            } catch (e) {
+                reject(e);
+            }
+        }); 
+    }
+    
+    function loadButtonConfigsFromDB() { 
+        return new Promise((resolve, reject) => { 
+            if (!db) return resolve(null);
+            try {
+                const tx = db.transaction(BUTTON_STORE_NAME, 'readonly'); 
+                const store = tx.objectStore(BUTTON_STORE_NAME); 
+                const req = store.get(1); 
+                req.onsuccess = () => resolve(req.result ? req.result.configs : null); 
+                req.onerror = (e) => reject(e);
+            } catch (e) {
+                reject(e);
+            }
+        }); 
+    }
+    
+    // 新增：保存轮播配置
+    function saveSlideshowConfigToDB(config) {
+        return new Promise((resolve, reject) => {
+            if (!db) return reject('DB not ready');
+            try {
+                const tx = db.transaction(SLIDESHOW_STORE_NAME, 'readwrite');
+                const store = tx.objectStore(SLIDESHOW_STORE_NAME);
+                store.clear().onsuccess = () => {
+                    store.add({ id: 1, ...config }).onsuccess = () => resolve();
+                };
+            } catch (e) {
+                reject(e);
+            }
+        });
+    }
+
+    // 新增：加载轮播配置
+    function loadSlideshowConfigFromDB() {
+        return new Promise((resolve, reject) => {
+            if (!db) return resolve(null);
+            try {
+                const tx = db.transaction(SLIDESHOW_STORE_NAME, 'readonly');
+                const store = tx.objectStore(SLIDESHOW_STORE_NAME);
+                const req = store.get(1);
+                req.onsuccess = () => resolve(req.result || null);
+                req.onerror = (e) => reject(e);
+            } catch (e) {
+                reject(e);
+            }
+        });
+    }
+    
+    function clearAllBills() { 
+        return new Promise((resolve, reject) => { 
+            if (!db) return reject('DB not ready'); 
+            try {
+                const tx = db.transaction(STORE_NAME, 'readwrite'); 
+                const store = tx.objectStore(STORE_NAME); 
+                const req = store.clear(); 
+                req.onsuccess = () => resolve(); 
+                req.onerror = (e) => reject(e);
+            } catch (e) {
+                reject(e);
+            }
+        }); 
+    }
+    
+    function bulkAddBills(records) { 
+        return new Promise((resolve, reject) => { 
+            if (!db || !records.length) return resolve([]); 
+            try {
+                const tx = db.transaction(STORE_NAME, 'readwrite'); 
+                const store = tx.objectStore(STORE_NAME); 
+                let added = 0; 
+                records.forEach(r => { 
+                    const req = store.add(r); 
+                    req.onsuccess = () => { 
+                        added++; 
+                        if (added === records.length) resolve(records.map(x => x.timestamp)); 
+                    }; 
+                    req.onerror = (e) => { 
+                        added++; 
+                        if (added === records.length) reject(e); 
+                    }; 
+                });
+            } catch (e) {
+                reject(e);
+            }
+        }); 
+    }
+    
+    function showConfirm(message, onConfirm) { 
+        customConfirmMessage.innerText = message; 
+        customConfirmOverlay.style.display = 'flex'; 
+        const confirmHandler = () => { 
+            customConfirmOverlay.style.display = 'none'; 
+            onConfirm(true); 
+            cleanup(); 
+        }; 
+        const cancelHandler = () => { 
+            customConfirmOverlay.style.display = 'none'; 
+            onConfirm(false); 
+            cleanup(); 
+        }; 
+        const cleanup = () => { 
+            customConfirmOk.removeEventListener('click', confirmHandler); 
+            customConfirmCancel.removeEventListener('click', cancelHandler); 
+        }; 
+        customConfirmOk.addEventListener('click', confirmHandler); 
+        customConfirmCancel.addEventListener('click', cancelHandler); 
+    }
+    
+    async function exportData() { 
+        try { 
+            const bills = await getAllBills(); 
+            // 加载轮播配置
+            const slideshowConfig = await loadSlideshowConfigFromDB();
+            const exportData = { 
+                version:3, 
+                exportTime: new Date().toISOString(), 
+                bills, 
+                buttonConfigs,
+                slideshowConfig: slideshowConfig || { title: '📷📷📷📷📷📷', speed: 3, effect: 'fade' }
+            }; 
+            const blob = new Blob([JSON.stringify(exportData,null,2)], {type:'application/json'}); 
+            const url = URL.createObjectURL(blob); 
+            const a = document.createElement('a'); 
+            a.href = url; 
+            a.download = `Tim记账软件备份_${new Date().toISOString().slice(0,10)}.json`; 
+            a.click(); 
+            URL.revokeObjectURL(url); 
+            showConfirm('✅ 导出成功', ()=>{}); 
+        } catch(err){ 
+            console.error('导出失败:', err);
+            showConfirm('❌ 导出失败', ()=>{}); 
+        } 
+    }
+    
+    async function performImport(importData) { 
+        try { 
+            if (!importData.bills || !importData.buttonConfigs) throw new Error('无效格式'); 
+            await clearAllBills(); 
+            if (importData.bills.length) await bulkAddBills(importData.bills); 
+            buttonConfigs = importData.buttonConfigs; 
+            await saveButtonConfigsToDB(buttonConfigs); 
+            
+            // 导入轮播配置
+            if (importData.slideshowConfig) {
+                await saveSlideshowConfigToDB(importData.slideshowConfig);
+            }
+            
+            await loadFromDB(); 
+            showConfirm('✅ 导入成功', ()=>{}); 
+        } catch(err){ 
+            console.error('导入失败:', err);
+            showConfirm('❌ 导入失败', ()=>{}); 
+        } 
+    }
+    
+    function importData(file) { 
+        const reader = new FileReader(); 
+        reader.onload = async (e) => { 
+            try { 
+                const importData = JSON.parse(e.target.result); 
+                if (!importData.bills || !importData.buttonConfigs) throw new Error('无效'); 
+                showConfirm(`确定导入？账单:${importData.bills.length}条，按钮:${importData.buttonConfigs.length}个`, (confirmed) => { 
+                    if (confirmed) performImport(importData); 
+                }); 
+            } catch(err){ 
+                console.error('导入文件错误:', err);
+                showConfirm('❌ 导入文件错误', ()=>{}); 
+            } 
+        }; 
+        reader.readAsText(file); 
+    }
+
+    // 利润按钮事件 - 不重置视图
+    profitFooterBtn.addEventListener('click', ()=>{ 
+        if (editMode) return; 
+        profitMode = !profitMode; 
+        profitFooterBtn.innerText = profitMode ? '隐藏利润' : '查看利润'; 
+        profitFooterBtn.classList.toggle('active', profitMode); 
+        activeEditItem = null; 
+        // 不调用 resetToFirstPage，仅重新渲染当前视图
+        renderCurrentView(); 
+        updateMonthlyChart(); 
+        renderButtons(false);
+        updateSelectedTotal();
+    });
+    
+    topCostToggleBtn.addEventListener('click', ()=>{ if (!editMode) return; dualModeCost = !dualModeCost; topCostToggleBtn.innerText = dualModeCost ? '返回售价' : '设置成本'; topCostToggleBtn.classList.remove('sales-mode', 'cost-mode'); topCostToggleBtn.classList.add('cost-mode'); if (editMode) renderButtons(true); });
+
+    function enterSettingMode() { 
+        editMode = true; 
+        pendingDeleteIndex = -1; 
+        dualModeCost = false; 
+        topCostToggleBtn.innerText = '设置成本'; 
+        topCostToggleBtn.classList.remove('sales-mode', 'cost-mode'); 
+        topCostToggleBtn.classList.add('cost-mode'); 
+        tempButtonConfigs = buttonConfigs.map(config => ({ ...config, cost: config.cost || 0 })); 
+        document.body.classList.add('setting-mode'); 
+        confirmTopBtn.classList.add('setting-mode'); 
+        confirmTopBtn.innerText = '确认设置'; 
+        renderButtons(true); 
+        initSortable(); 
+    }
+    
+    // 修改 exitSettingMode 函数，保存轮播配置
+    async function exitSettingMode(save = false) { 
+        profitMode = false;
+        profitFooterBtn.innerText = '查看利润';
+        profitFooterBtn.classList.remove('active');
+
+        if (save) { 
+            // 保存按钮配置
+            document.querySelectorAll('.cost-btn').forEach((btn, index) => { 
+                const ni = btn.querySelector('.btn-name-input'); 
+                const di = btn.querySelector('.btn-dual-input'); 
+                if (ni && di && tempButtonConfigs[index]) { 
+                    tempButtonConfigs[index].name = ni.value.trim() || '未命名'; 
+                    const val = parseFloat(di.value) || 0; 
+                    if (dualModeCost) { 
+                        tempButtonConfigs[index].cost = val; 
+                    } else { 
+                        tempButtonConfigs[index].price = val; 
+                    } 
+                } 
+            }); 
+            await saveButtonConfigs(); 
+            
+            // 保存轮播配置
+            const slideshowConfig = {
+                title: slideshowTitleInput.value,
+                speed: parseFloat(slideshowSpeedInput.value) || 3,
+                effect: currentEffect
+            };
+            await saveSlideshowConfigToDB(slideshowConfig);
+            
+            confirmTopBtn.innerText = '✓ 已保存'; 
+            setTimeout(() => { if (!editMode) confirmTopBtn.innerText = '确认记账'; }, 800); 
+        } else { 
+            confirmTopBtn.innerText = '确认记账'; 
+        } 
+        tempButtonConfigs = []; 
+        editMode = false; 
+        document.body.classList.remove('setting-mode'); 
+        confirmTopBtn.classList.remove('setting-mode'); 
+        renderButtons(false); 
+        updateSelectedTotal(); 
+        if (sortableInstance) { 
+            sortableInstance.destroy(); 
+            sortableInstance = null; 
+        } 
+        resetToFirstPage(); 
+        renderCurrentView(); 
+    }
+    
+    async function saveButtonConfigs() { 
+        if (!tempButtonConfigs.length) return; 
+        const updatePromises = []; 
+        document.querySelectorAll('.cost-btn').forEach((btn) => { 
+            const ni = btn.querySelector('.btn-name-input'); 
+            const originalName = btn.dataset.originalName; 
+            if (ni && originalName) { 
+                const newName = ni.value.trim() || '未命名'; 
+                if (originalName !== newName && originalName) { 
+                    updatePromises.push(updateBillNames(originalName, newName)); 
+                } 
+            } 
+        }); 
+        if (updatePromises.length) await Promise.all(updatePromises); 
+        buttonConfigs = tempButtonConfigs.map(c => ({ ...c })); 
+        await saveButtonConfigsToDB(buttonConfigs); 
+        await loadFromDB(); 
+    }
+    
+    function showPasswordDialog() { passwordOverlay.style.display = 'flex'; passwordInput.value = ''; passwordError.innerText = ''; passwordInput.focus(); }
+    function hidePasswordDialog() { passwordOverlay.style.display = 'none'; }
+    function verifyPassword() { if (passwordInput.value === SETTING_PASSWORD) { hidePasswordDialog(); enterSettingMode(); } else { passwordError.innerText = '密码错误'; passwordInput.value = ''; passwordInput.focus(); } }
+    
+    passwordConfirm.addEventListener('click', verifyPassword); 
+    passwordCancel.addEventListener('click', hidePasswordDialog); 
+    passwordInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') verifyPassword(); });
+    
+    settingsFooterBtn.addEventListener('click', () => { if (!editMode) showPasswordDialog(); });
+    copyrightBackBtn.addEventListener('click', () => { if (editMode) { exitSettingMode(false); } });
+    confirmTopBtn.addEventListener('click', () => { if (editMode) { exitSettingMode(true); } else { performAccounting(); } });
+
+    async function performAccounting() { 
+        const selectedItems = []; 
+        document.querySelectorAll('.cost-btn.selected').forEach(btn => { 
+            if (editMode) return; 
+            const repairInput = btn.querySelector('.repair-input'); 
+            if (repairInput) { 
+                const nameSpan = btn.querySelector('.btn-name'); 
+                const name = nameSpan ? nameSpan.innerText : '维修'; 
+                const price = parseFloat(repairInput.value); 
+                if (!isNaN(price) && price > 0) selectedItems.push({ name, price }); 
+            } else { 
+                const nameSpan = btn.querySelector('.btn-name'); 
+                const priceSpan = btn.querySelector('.btn-price'); 
+                if (nameSpan && priceSpan) { 
+                    const name = nameSpan.innerText; 
+                    const price = parseFloat(priceSpan.innerText.replace('¥', '')); 
+                    if (!isNaN(price) && price > 0) selectedItems.push({ name, price }); 
+                } 
+            } 
+        }); 
+        
+        if (!selectedItems.length) { 
+            blinkUnselectedButtons(); 
+            return; 
+        } 
+        
+        const now = new Date(); 
+        const datetimeStr = `${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2,'0')}-${now.getDate().toString().padStart(2,'0')} ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`; 
+        const newRecords = selectedItems.map(p => { 
+            let cost = 0; 
+            const found = buttonConfigs.find(b => b.name === p.name); 
+            if (found && found.cost !== undefined) cost = found.cost; 
+            return { name: p.name, price: p.price, cost, datetime: datetimeStr, timestamp: Date.now() + Math.random() }; 
+        }); 
+        
+        try { 
+            await addBills(newRecords); 
+            billRecords.push(...newRecords); 
+            document.querySelectorAll('.cost-btn.selected').forEach(b => b.classList.remove('selected')); 
+            updateSelectedTotal(); 
+            resetToFirstPage(); 
+            renderCurrentView(); 
+            updateMonthlyChart(); 
+        } catch (err) { 
+            console.error(err); 
+        } 
+    }
+    
+    function blinkUnselectedButtons() { 
+        document.querySelectorAll('.cost-btn:not(.selected)').forEach(btn => { 
+            btn.classList.add('blink'); 
+            setTimeout(() => btn.classList.remove('blink'), 300); 
+        }); 
+    }
+    
+    function updateSelectedTotal() { 
+        let total = 0; 
+        document.querySelectorAll('.cost-btn.selected').forEach(btn => { 
+            if (editMode) { 
+                const di = btn.querySelector('.btn-dual-input'); 
+                if (di) total += parseFloat(di.value) || 0; 
+            } else { 
+                const ri = btn.querySelector('.repair-input'); 
+                if (ri) total += parseFloat(ri.value) || 0; 
+                else { 
+                    const ps = btn.querySelector('.btn-price'); 
+                    if (ps) total += parseFloat(ps.innerText.replace('¥','')) || 0; 
+                } 
+            } 
+        }); 
+        selectedTotal.innerText = '¥' + total.toFixed(1); 
+    }
+    
+    function initSortable() { 
+        if (sortableInstance) sortableInstance.destroy(); 
+        sortableInstance = new Sortable(buttonContainer, { 
+            animation:150, 
+            handle:'.cost-btn', 
+            draggable:'.cost-btn', 
+            disabled:!editMode, 
+            onEnd: function(evt) { 
+                const items = Array.from(buttonContainer.children); 
+                const newTemp = []; 
+                items.forEach((item, idx) => { 
+                    const ni = item.querySelector('.btn-name-input'); 
+                    const di = item.querySelector('.btn-dual-input'); 
+                    const oldIdx = item.getAttribute('data-index'); 
+                    let old = (oldIdx && tempButtonConfigs[parseInt(oldIdx)]) ? tempButtonConfigs[parseInt(oldIdx)] : { name:'', price:0, cost:0, isRepair:false }; 
+                    if (ni && di) { 
+                        let price = old.price, cost = old.cost; 
+                        const val = parseFloat(di.value) || 0; 
+                        if (dualModeCost) cost = val; 
+                        else price = val; 
+                        newTemp.push({ name: ni.value.trim() || '未命名', price, cost, isRepair: old.isRepair }); 
+                    } 
+                }); 
+                if (newTemp.length === tempButtonConfigs.length) { 
+                    tempButtonConfigs = newTemp; 
+                    items.forEach((it, idx) => it.setAttribute('data-index', idx)); 
+                } 
+                pendingDeleteIndex = -1; 
+            } 
+        }); 
+    }
+    
+    function addNewButton(isRepair) { 
+        tempButtonConfigs.push({ name: isRepair ? '自定义' : '固定项', price: 50, cost: 0, isRepair }); 
+        renderButtons(true); 
+        setTimeout(()=> buttonContainer.scrollTop = buttonContainer.scrollHeight, 50); 
+    }
+    
+    function triggerDelete(index) { pendingDeleteIndex = index; renderButtons(true); }
+    function cancelDelete() { pendingDeleteIndex = -1; renderButtons(true); }
+    function confirmDelete(index) { if (tempButtonConfigs.length <= 1) return; tempButtonConfigs.splice(index,1); pendingDeleteIndex = -1; renderButtons(true); }
+
+    function renderButtons(useTemp = false) { 
+    const configs = useTemp ? tempButtonConfigs : buttonConfigs; 
+    buttonContainer.innerHTML = ''; 
+    configs.forEach((config, idx) => { 
+        const btn = document.createElement('div'); 
+        btn.className = 'cost-btn'; 
+        btn.setAttribute('data-index', idx); 
+        btn.dataset.originalName = config.name; 
+        if (config.isRepair) btn.classList.add('repair-btn'); 
+        if (editMode) { 
+            if (pendingDeleteIndex === idx) { 
+                const confirmBtn = document.createElement('span'); 
+                confirmBtn.className = 'delete-confirm-btn'; 
+                confirmBtn.innerText = '确认'; 
+                confirmBtn.addEventListener('click', (e) => { 
+                    e.stopPropagation(); 
+                    confirmDelete(idx); 
+                }); 
+                const cancelBtn = document.createElement('span'); 
+                cancelBtn.className = 'delete-cancel-btn'; 
+                cancelBtn.innerText = '取消'; 
+                cancelBtn.addEventListener('click', (e) => { 
+                    e.stopPropagation(); 
+                    cancelDelete(); 
+                }); 
+                btn.appendChild(confirmBtn); 
+                btn.appendChild(cancelBtn); 
+                btn.addEventListener('click', (e) => { 
+                    if(e.target===confirmBtn||e.target===cancelBtn) return; 
+                    btn.classList.toggle('selected'); 
+                    updateSelectedTotal(); 
+                }); 
+            } else { 
+                const ni = document.createElement('input'); 
+                ni.type='text'; 
+                ni.className='btn-name-input'; 
+                ni.value = config.name; 
+                ni.addEventListener('input', (e) => { 
+                    tempButtonConfigs[idx].name = e.target.value.trim() || '未命名'; 
+                }); 
+                const di = document.createElement('input'); 
+                di.type='number'; 
+                di.className='btn-dual-input'; 
+                di.value = dualModeCost ? (config.cost||0).toFixed(1) : config.price.toFixed(1); 
+                di.min='0'; 
+                di.step='0.5'; 
+                if (dualModeCost) { 
+                    di.classList.add('cost-input-style'); 
+                    di.classList.remove('sales-input-style'); 
+                } else { 
+                    di.classList.add('sales-input-style'); 
+                    di.classList.remove('cost-input-style'); 
+                } 
+                di.addEventListener('input', (e) => { 
+                    const val = parseFloat(di.value) || 0; 
+                    if (dualModeCost) { 
+                        tempButtonConfigs[idx].cost = val; 
+                    } else { 
+                        tempButtonConfigs[idx].price = val; 
+                    } 
+                    if (btn.classList.contains('selected')) updateSelectedTotal(); 
+                }); 
+                btn.appendChild(ni); 
+                btn.appendChild(di); 
+                const del = document.createElement('span'); 
+                del.className = 'delete-btn'; 
+                del.innerHTML = '✕'; 
+                del.addEventListener('click', (e) => { 
+                    e.stopPropagation(); 
+                    triggerDelete(idx); 
+                }); 
+                btn.appendChild(del); 
+                btn.addEventListener('click', (e) => { 
+                    if(e.target===ni || e.target===di || e.target===del) return; 
+                    btn.classList.toggle('selected'); 
+                    updateSelectedTotal(); 
+                }); 
+                [ni, di].forEach(inp => inp.addEventListener('click', e => e.stopPropagation())); 
+            } 
+        } else { 
+            if (config.isRepair) { 
+                const nameSpan = document.createElement('span'); 
+                nameSpan.className = 'btn-name'; 
+                nameSpan.innerText = config.name; 
+                const inp = document.createElement('input'); 
+                inp.type='number'; 
+                inp.className='repair-input'; 
+                inp.value = config.price; 
+                inp.min='1'; 
+                inp.step='0.5'; 
+                
+                // 修改这里：点击输入框时选中按钮
+                inp.addEventListener('click', (e) => { 
+                    e.stopPropagation(); 
+                    btn.classList.toggle('selected'); 
+                    updateSelectedTotal(); 
+                }); 
+                
+                btn.appendChild(nameSpan); 
+                btn.appendChild(inp); 
+                btn.addEventListener('click', (e) => { 
+                    if(e.target===inp) return; 
+                    btn.classList.toggle('selected'); 
+                    updateSelectedTotal(); 
+                }); 
+                inp.addEventListener('input', ()=>{ 
+                    if(btn.classList.contains('selected')) updateSelectedTotal(); 
+                }); 
+            } else { 
+                const nameSpan = document.createElement('span'); 
+                nameSpan.className = 'btn-name'; 
+                nameSpan.innerText = config.name; 
+                
+                if (profitMode) { 
+                    const costSpan = document.createElement('span'); 
+                    costSpan.className = 'btn-cost-price'; 
+                    const costValue = (config.cost !== undefined && config.cost !== null) ? config.cost : 0;
+                    costSpan.innerText = 'C' + costValue.toFixed(1); 
+                    costSpan.style.color = '#7aa5ff'; 
+                    
+                    const priceSpan = document.createElement('span'); 
+                    priceSpan.className = 'btn-price'; 
+                    priceSpan.innerText = '¥' + config.price.toFixed(1); 
+                    priceSpan.style.color = '#ffb85c'; 
+                    
+                    btn.appendChild(nameSpan); 
+                    btn.appendChild(costSpan); 
+                    btn.appendChild(priceSpan); 
+                } else { 
+                    const priceSpan = document.createElement('span'); 
+                    priceSpan.className = 'btn-price'; 
+                    priceSpan.innerText = '¥' + config.price.toFixed(1); 
+                    btn.appendChild(nameSpan); 
+                    btn.appendChild(priceSpan); 
+                } 
+                btn.addEventListener('click', () => { 
+                    btn.classList.toggle('selected'); 
+                    updateSelectedTotal(); 
+                }); 
+            } 
+        } 
+        buttonContainer.appendChild(btn); 
+    }); 
+}
+
+    function updateStatsDisplay() { 
+        let total = 0, profit = 0; 
+        if (currentStatsRange === 'day') { 
+            const today = new Date().toISOString().slice(0,10); 
+            total = billRecords.filter(r => r.datetime.startsWith(today)).reduce((sum, r) => sum + r.price, 0); 
+            profit = billRecords.filter(r => r.datetime.startsWith(today)).reduce((sum, r) => sum + (r.price - (r.cost||0)), 0); 
+        } else if (currentStatsRange === 'month') { 
+            const curMonth = new Date().toISOString().slice(0,7); 
+            total = billRecords.filter(r => r.datetime.slice(0,7) === curMonth).reduce((sum, r) => sum + r.price, 0); 
+            profit = billRecords.filter(r => r.datetime.slice(0,7) === curMonth).reduce((sum, r) => sum + (r.price - (r.cost||0)), 0); 
+        } else { 
+            const curYear = new Date().getFullYear().toString(); 
+            total = billRecords.filter(r => r.datetime.slice(0,4) === curYear).reduce((sum, r) => sum + r.price, 0); 
+            profit = billRecords.filter(r => r.datetime.slice(0,4) === curYear).reduce((sum, r) => sum + (r.price - (r.cost||0)), 0); 
+        } 
+        if (profitMode) { 
+            statsAmount.innerText = '利润 ¥' + profit.toFixed(1); 
+        } else { 
+            statsAmount.innerText = '¥' + total.toFixed(1); 
+        } 
+    }
+
+    function bindRowEvents() { 
+        document.querySelectorAll('[data-action="trigger"]').forEach(btn => { 
+            btn.addEventListener('click', (e) => { 
+                e.stopPropagation(); 
+                const key = Number(btn.dataset.key); 
+                activeDeleteItem = key; 
+                activeEditItem = null; 
+                renderCurrentView(); 
+            }); 
+        }); 
+        
+        document.querySelectorAll('[data-action="confirm"]').forEach(btn => { 
+            btn.addEventListener('click', async (e) => { 
+                e.stopPropagation(); 
+                const key = Number(btn.dataset.key); 
+                try { 
+                    await deleteBill(key); 
+                    billRecords = billRecords.filter(r => r.timestamp !== key); 
+                    activeDeleteItem = null; 
+                    renderCurrentView(); 
+                    updateStatsDisplay(); 
+                    updateMonthlyChart(); 
+                } catch(err){} 
+            }); 
+        }); 
+        
+        document.querySelectorAll('[data-action="cancel"]').forEach(btn => { 
+            btn.addEventListener('click', (e) => { 
+                e.stopPropagation(); 
+                activeDeleteItem = null; 
+                renderCurrentView(); 
+            }); 
+        }); 
+        
+        document.querySelectorAll('[data-action="edit-trigger"]').forEach(btn => { 
+            btn.addEventListener('click', (e) => { 
+                e.stopPropagation(); 
+                const key = Number(btn.dataset.key); 
+                activeEditItem = key; 
+                activeDeleteItem = null; 
+                renderCurrentView(); 
+            }); 
+        }); 
+        
+        document.querySelectorAll('[data-action="edit-confirm"]').forEach(btn => { 
+            btn.addEventListener('click', (e) => { 
+                e.stopPropagation(); 
+                const key = Number(btn.dataset.key); 
+                const priceInput = document.getElementById(`edit-price-${key}`); 
+                const costInput = document.getElementById(`edit-cost-${key}`); 
+                if (priceInput && costInput) { 
+                    const newPrice = parseFloat(priceInput.value); 
+                    const newCost = parseFloat(costInput.value); 
+                    if (!isNaN(newPrice) && !isNaN(newCost)) handleEditConfirm(key, newPrice, newCost); 
+                } 
+            }); 
+        }); 
+        
+        document.querySelectorAll('[data-action="edit-cancel"]').forEach(btn => { 
+            btn.addEventListener('click', (e) => { 
+                e.stopPropagation(); 
+                activeEditItem = null; 
+                renderCurrentView(); 
+            }); 
+        }); 
+    }
+    
+    async function handleEditConfirm(timestamp, newPrice, newCost) { 
+        const record = billRecords.find(r => r.timestamp === timestamp); 
+        if (!record) return; 
+        record.price = newPrice; 
+        record.cost = newCost; 
+        try { 
+            await updateBill(record); 
+            activeEditItem = null; 
+            renderCurrentView(); 
+            updateMonthlyChart(); 
+        } catch (err) { 
+            console.error(err); 
+        } 
+    }
+
+    // ================== 视图函数 ==================
+
+    // 显示某个月份的项目汇总（单月商品统计）
+    function showMonthSummary(month) {
+        currentViewLevel = 'month-summary';
+        currentDetailsParam = month;
+        currentPage = 1;
+
+        const monthRecords = billRecords.filter(r => r.datetime.slice(0,7) === month);
+        const itemMap = {};
+        monthRecords.forEach(r => {
+            if (!itemMap[r.name]) itemMap[r.name] = { name: r.name, total: 0, profit: 0, count: 0 };
+            itemMap[r.name].total += r.price;
+            itemMap[r.name].profit += (r.price - (r.cost || 0));
+            itemMap[r.name].count++;
+        });
+        const items = Object.values(itemMap).sort((a,b) => b.total - a.total);
+        const total = items.length;
+        const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+        if (currentPage > totalPages) currentPage = totalPages;
+        pageInfo.innerText = `${currentPage}/${totalPages}`;
+
+        const start = (currentPage-1)*PAGE_SIZE, end = start+PAGE_SIZE;
+        const pageItems = items.slice(start, end);
+
+        const [year, monthNum] = month.split('-');
+        const displayMonth = `${year}年${monthNum}月`;
+
+        let html = `<div class="back-btn" id="backFromMonthSummary">◀ 返回月份列表</div>`;
+        html += `<div class="summary-item">📊 ${displayMonth} 项目汇总</div>`;
+
+        pageItems.forEach(item => {
+            if (profitMode) {
+                html += `<div class="summary-item">
+                    <div class="summary-left">
+                        <span class="summary-name">${item.name}</span>
+                        <span class="summary-count">${item.count}笔</span>
+                    </div>
+                    <div style="display:flex; gap:10px;">
+                        <span class="summary-total">售${item.total.toFixed(1)}</span>
+                        <span class="summary-profit">利${item.profit.toFixed(1)}</span>
+                    </div>
+                </div>`;
+            } else {
+                html += `<div class="summary-item">
+                    <div class="summary-left">
+                        <span class="summary-name">${item.name}</span>
+                        <span class="summary-count">${item.count}笔</span>
+                    </div>
+                    <span class="summary-total">¥${item.total.toFixed(1)}</span>
+                </div>`;
+            }
+        });
+
+        billContainer.innerHTML = html;
+
+document.getElementById('backFromMonthSummary').addEventListener('click', () => {
+    // 判断上一级是什么
+    if (currentViewLevel === 'month-summary' && currentDetailsParam) {
+        const year = currentDetailsParam.slice(0,4);  // 从月份提取年份
+        currentViewLevel = 'year-detail';              // 返回年份详情页
+        currentDetailsParam = year;                     // 设置年份参数
+        currentPage = 1;                                 // 重置页码
+        renderYearDetailView(year);                      // 渲染年份详情页
+    } else {
+        // 兜底：如果状态异常，返回主视图
+        currentViewLevel = 'main';
+        currentDetailsParam = null;
+        currentPage = 1;
+        renderMonthView();
+    }
+        });
+
+        updateStatsDisplay();
+    }
+
+    // 修改月份汇总视图（主月视图）
+    function renderMonthView() {
+        currentViewLevel = 'main';
+        currentDetailsParam = null;
+
+        const monthMap = {};
+        billRecords.forEach(r => {
+            const m = r.datetime.slice(0,7);
+            if (!monthMap[m]) monthMap[m] = { month: m, total: 0, profit: 0, count: 0 };
+            monthMap[m].total += r.price;
+            monthMap[m].profit += (r.price - (r.cost||0));
+            monthMap[m].count++;
+        });
+        const months = Object.values(monthMap).sort((a,b) => b.month.localeCompare(a.month));
+        const total = months.length;
+        const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+        if (currentPage > totalPages) currentPage = totalPages;
+        pageInfo.innerText = `${currentPage}/${totalPages}`;
+
+        const start = (currentPage-1)*PAGE_SIZE, end = start+PAGE_SIZE;
+        const pageMonths = months.slice(start, end);
+
+        if (total === 0) {
+            billContainer.innerHTML = '<div class="no-bills">📭 无月记录</div>';
+            updateStatsDisplay();
+            return;
+        }
+
+        let html = '';
+        pageMonths.forEach(m => {
+            if (profitMode) {
+                html += `<div class="summary-main-item" data-month="${m.month}" style="cursor:pointer;">
+                    <div class="summary-main-left">
+                        <span class="summary-main-name">📅 ${m.month}</span>
+                        <span class="summary-main-count">${m.count}笔</span>
+                    </div>
+                    <div style="display:flex; gap:12px;">
+                        <span class="summary-main-total">售${m.total.toFixed(1)}</span>
+                        <span class="summary-main-profit">利${m.profit.toFixed(1)}</span>
+                    </div>
+                </div>`;
+            } else {
+                html += `<div class="summary-main-item" data-month="${m.month}" style="cursor:pointer;">
+                    <div class="summary-main-left">
+                        <span class="summary-main-name">📅 ${m.month}</span>
+                        <span class="summary-main-count">${m.count}笔</span>
+                    </div>
+                    <span class="summary-main-total">¥${m.total.toFixed(1)}</span>
+                </div>`;
+            }
+        });
+        billContainer.innerHTML = html;
+
+        document.querySelectorAll('.summary-main-item').forEach(el => {
+            el.addEventListener('click', () => {
+                const month = el.dataset.month;
+                if (month) showMonthSummary(month);
+            });
+        });
+
+        updateStatsDisplay();
+    }
+
+    // 修改年份详情视图（显示该年的月份汇总）
+    function renderYearDetailView(year) {
+        currentViewLevel = 'year-detail';
+        currentDetailsParam = year;
+        currentPage = 1;
+
+        const filteredRecords = billRecords.filter(r => r.datetime.slice(0,4) === year);
+        const monthMap = {};
+        filteredRecords.forEach(r => {
+            const m = r.datetime.slice(0,7);
+            if (!monthMap[m]) monthMap[m] = { month: m, total: 0, profit: 0, count: 0 };
+            monthMap[m].total += r.price;
+            monthMap[m].profit += (r.price - (r.cost||0));
+            monthMap[m].count++;
+        });
+        const months = Object.values(monthMap).sort((a,b) => b.month.localeCompare(a.month));
+        const total = months.length;
+        const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+        if (currentPage > totalPages) currentPage = totalPages;
+        pageInfo.innerText = `${currentPage}/${totalPages}`;
+
+        const start = (currentPage-1)*PAGE_SIZE, end = start+PAGE_SIZE;
+        const pageMonths = months.slice(start, end);
+
+        if (total === 0) {
+            billContainer.innerHTML = `<div class="no-bills">📭 无记录</div>`;
+            updateStatsDisplay();
+            return;
+        }
+
+        let html = `<div class="back-btn" id="backToYearView">◀ 返回年份列表</div>`;
+        html += `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding:0 4px; font-size: 0.9rem;">
+            <span style="color:#ffb85c; font-weight:600;">📅 ${year}年 月份明细</span>
+        </div>`;
+
+        pageMonths.forEach(m => {
+            if (profitMode) {
+                html += `<div class="summary-main-item" data-month="${m.month}" style="cursor:pointer;">
+                    <div class="summary-main-left">
+                        <span class="summary-main-name">📅 ${m.month}</span>
+                        <span class="summary-main-count">${m.count}笔</span>
+                    </div>
+                    <div style="display:flex; gap:12px;">
+                        <span class="summary-main-total">售${m.total.toFixed(1)}</span>
+                        <span class="summary-main-profit">利${m.profit.toFixed(1)}</span>
+                    </div>
+                </div>`;
+            } else {
+                html += `<div class="summary-main-item" data-month="${m.month}" style="cursor:pointer;">
+                    <div class="summary-main-left">
+                        <span class="summary-main-name">📅 ${m.month}</span>
+                        <span class="summary-main-count">${m.count}笔</span>
+                    </div>
+                    <span class="summary-main-total">¥${m.total.toFixed(1)}</span>
+                </div>`;
+            }
+        });
+
+        billContainer.innerHTML = html;
+
+        document.getElementById('backToYearView').addEventListener('click', () => {
+            currentViewLevel = 'main';
+            currentDetailsParam = null;
+            currentPage = 1;
+            renderYearView();
+        });
+
+        document.querySelectorAll('.summary-main-item[data-month]').forEach(el => {
+            el.addEventListener('click', () => {
+                const month = el.dataset.month;
+                if (month) showMonthSummary(month);
+            });
+        });
+
+        updateStatsDisplay();
+    }
+
+    // 主年视图
+    function renderYearView() {
+        currentViewLevel = 'main';
+        currentDetailsParam = null;
+
+        const yearMap = {};
+        billRecords.forEach(r => {
+            const y = r.datetime.slice(0,4);
+            if (!yearMap[y]) yearMap[y] = { year: y, total: 0, profit: 0, count: 0 };
+            yearMap[y].total += r.price;
+            yearMap[y].profit += (r.price - (r.cost||0));
+            yearMap[y].count++;
+        });
+        const years = Object.values(yearMap).sort((a,b) => b.year.localeCompare(a.year));
+        const total = years.length;
+        const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+        if (currentPage > totalPages) currentPage = totalPages;
+        pageInfo.innerText = `${currentPage}/${totalPages}`;
+
+        const start = (currentPage-1)*PAGE_SIZE, end = start+PAGE_SIZE;
+        const pageYears = years.slice(start, end);
+
+        if (total === 0) {
+            billContainer.innerHTML = '<div class="no-bills">📭 无年记录</div>';
+            updateStatsDisplay();
+            return;
+        }
+
+        let html = '';
+        pageYears.forEach(y => {
+            if (profitMode) {
+                html += `<div class="summary-main-item" data-year="${y.year}" style="cursor:pointer;">
+                    <div class="summary-main-left">
+                        <span class="summary-main-name">📅 ${y.year}年</span>
+                        <span class="summary-main-count">${y.count}笔</span>
+                    </div>
+                    <div style="display:flex; gap:12px;">
+                        <span class="summary-main-total">售${y.total.toFixed(1)}</span>
+                        <span class="summary-main-profit">利${y.profit.toFixed(1)}</span>
+                    </div>
+                </div>`;
+            } else {
+                html += `<div class="summary-main-item" data-year="${y.year}" style="cursor:pointer;">
+                    <div class="summary-main-left">
+                        <span class="summary-main-name">📅 ${y.year}年</span>
+                        <span class="summary-main-count">${y.count}笔</span>
+                    </div>
+                    <span class="summary-main-total">¥${y.total.toFixed(1)}</span>
+                </div>`;
+            }
+        });
+        billContainer.innerHTML = html;
+
+        document.querySelectorAll('.summary-main-item').forEach(el => {
+            el.addEventListener('click', () => {
+                const year = el.dataset.year;
+                if (year) renderYearDetailView(year);
+            });
+        });
+
+        updateStatsDisplay();
+    }
+
+    // 日视图
+    function renderDayView() { 
+        currentViewLevel = 'main'; 
+        const sorted = [...billRecords].sort((a,b)=> new Date(b.datetime)-new Date(a.datetime)); 
+        const total = sorted.length; 
+        const totalPages = Math.max(1, Math.ceil(total/PAGE_SIZE)); 
+        currentPage = Math.min(currentPage, totalPages); 
+        pageInfo.innerText = `${currentPage}/${totalPages}`; 
+        const start = (currentPage-1)*PAGE_SIZE, end = start+PAGE_SIZE; 
+        const page = sorted.slice(start, end); 
+        
+        if (total===0) { 
+            billContainer.innerHTML='<div class="no-bills">📭 暂无记录</div>'; 
+            updateStatsDisplay(); 
+            return; 
+        } 
+        
+        const grouped = {}; 
+        page.forEach(r => { 
+            let d = r.datetime.split(' ')[0]; 
+            if(!grouped[d]) grouped[d]=[]; 
+            grouped[d].push(r); 
+        }); 
+        
+        let html = ''; 
+        Object.keys(grouped).sort((a,b)=>new Date(b)-new Date(a)).forEach(date=>{ 
+            html += `<div class="date-separator">📅 ${date.slice(5)}</div>`; 
+            grouped[date].forEach(rec=>{ 
+                const dt = rec.datetime.slice(0,16); 
+
+                const isActiveDelete = activeDeleteItem === rec.timestamp; 
+                const isActiveEdit = activeEditItem === rec.timestamp; 
+                if (profitMode) { 
+                    if (isActiveEdit) { 
+                        html += `<div class="bill-item" data-key="${rec.timestamp}">
+                            <div class="bill-left">
+                                <span class="bill-name">${rec.name}</span>
+                                <span class="edit-label">售</span>
+                                <input class="edit-input" id="edit-price-${rec.timestamp}" type="number" step="0.5" value="${rec.price.toFixed(1)}">
+                                <span class="edit-label">本</span>
+                                <input class="edit-input" id="edit-cost-${rec.timestamp}" type="number" step="0.5" value="${(rec.cost||0).toFixed(1)}">
+                            </div>
+                            <div class="delete-area">
+                                <span class="edit-confirm-btn" data-key="${rec.timestamp}" data-action="edit-confirm">确认</span>
+                                <span class="edit-cancel-btn" data-key="${rec.timestamp}" data-action="edit-cancel">取消</span>
+                            </div>
+                        </div>`; 
+                    } else { 
+                        let price = rec.price.toFixed(1); 
+                        let cost = (rec.cost||0).toFixed(1); 
+                        let profit = (rec.price - (rec.cost||0)).toFixed(1); 
+                        html += `<div class="bill-item" data-key="${rec.timestamp}">
+                            <div class="bill-left">
+                                <span class="bill-name">${rec.name}</span>
+                                <span class="bill-price">售${price}</span>
+                                <span class="bill-cost-price">本${cost}</span>
+                                <span class="bill-profit">利${profit}</span>
+                                <span class="bill-datetime">${dt}</span>
+                            </div>
+                            <div class="delete-area">
+                                ${!isActiveDelete ? `<span class="edit-trigger" data-key="${rec.timestamp}" data-action="edit-trigger">改</span>` : ''}
+                                ${isActiveDelete ? `<span class="delete-confirm-btn" data-key="${rec.timestamp}" data-action="confirm">确认</span><span class="delete-cancel-btn" data-key="${rec.timestamp}" data-action="cancel">取消</span>` : ''}
+                            </div>
+                        </div>`; 
+                    } 
+                } else { 
+                    html += `<div class="bill-item" data-key="${rec.timestamp}">
+                        <div class="bill-left">
+                            <span class="bill-name">${rec.name}</span>
+
+                            <span class="bill-price">¥${rec.price.toFixed(1)}</span>
+                            <span class="bill-datetime">${dt}</span>
+                        </div>
+                        <div class="delete-area">
+                            ${isActiveDelete ? `<span class="delete-confirm-btn" data-key="${rec.timestamp}" data-action="confirm">确认</span><span class="delete-cancel-btn" data-key="${rec.timestamp}" data-action="cancel">取消</span>` : `<span class="delete-trigger" data-key="${rec.timestamp}" data-action="trigger">✕</span>`}
+                        </div>
+                    </div>`; 
+                } 
+            }); 
+        }); 
+        billContainer.innerHTML = html; 
+        bindRowEvents(); 
+        updateStatsDisplay(); 
+    }
+
+    function renderCurrentView() {
+     
+
+        
+        if (currentViewLevel === 'main') {
+            if (currentStatsRange === 'day') renderDayView();
+            else if (currentStatsRange === 'month') renderMonthView();
+            else renderYearView();
+        } else if (currentViewLevel === 'month-summary' && currentDetailsParam) {
+            showMonthSummary(currentDetailsParam);
+        } else if (currentViewLevel === 'year-detail' && currentDetailsParam) {
+            renderYearDetailView(currentDetailsParam);
+        } else {
+            currentViewLevel = 'main';
+            currentDetailsParam = null;
+            if (currentStatsRange === 'day') renderDayView();
+            else if (currentStatsRange === 'month') renderMonthView();
+            else renderYearView();
+        }
+    }
+
+    function resetToFirstPage() { 
+        currentPage=1; 
+        activeDeleteItem=null; 
+        activeEditItem=null; 
+        currentViewLevel='main'; 
+        currentDetailsParam=null; 
+    }
+
+    function getMonthlyData() {
+        const months = Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, '0'));
+        const currentYear = new Date().getFullYear().toString();
+        const salesData = months.map(month => {
+            const monthStr = `${currentYear}-${month}`;
+            return billRecords.filter(r => r.datetime.startsWith(monthStr)).reduce((sum, r) => sum + r.price, 0);
+        });
+        const profitData = months.map(month => {
+            const monthStr = `${currentYear}-${month}`;
+            return billRecords.filter(r => r.datetime.startsWith(monthStr)).reduce((sum, r) => sum + (r.price - (r.cost || 0)), 0);
+        });
+        return { salesData, profitData };
+    }
+
+    function updateMonthlyChart() {
+        if (!chartCanvas) return;
+        const { salesData, profitData } = getMonthlyData();
+        const ctx = chartCanvas.getContext('2d');
+        if (monthlyChart) { monthlyChart.destroy(); }
+const dataSet = profitMode ? profitData : salesData;
+const label = profitMode ? '月利润 (元)' : '月销售额 (元)';
+
+// 修改这里的颜色值
+const bgColor = profitMode ? '#2196f3' : '#ffb85c';      // 利润模式：绿色；售价模式：橙色
+const borderColor = profitMode ? '#3c8c3c' : '#b2703a';  // 边框颜色
+        monthlyChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'],
+                datasets: [{
+                    label: label,
+                    data: dataSet,
+                    backgroundColor: bgColor,
+                    borderColor: borderColor,
+                    borderWidth: 1,
+                    borderRadius: 2,
+                    barPercentage: 0.65,
+                    categoryPercentage: 0.8,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        enabled: true,
+                        backgroundColor: '#1f364d',
+                        titleColor: '#f0f9ff',
+                        bodyColor: '#e1f0fa',
+                        borderColor: '#4794b3',
+                        borderWidth: 1,
+                        callbacks: { label: (context) => ` ${context.raw.toFixed(1)} 元` }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { font: { size: 9, weight: '500' }, color: '#b0b0d0', maxRotation: 0 }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(200,200,220,0.1)' },
+                        ticks: { font: { size: 7.5 }, color: '#b0b0d0', stepSize: 200, callback: (val) => val }
+                    }
+                }
+            }
+        });
+    }
+
+    // 修改 loadFromDB 函数，加载轮播配置
+    async function loadFromDB() { 
+        try { 
+            console.log('开始从数据库加载数据...');
+            // 确保数据库已打开
+            if (!db) {
+                console.log('数据库未就绪，等待打开...');
+                await openDB();
+            }
+            
+            const [records, saved, slideshowConfig] = await Promise.all([
+                getAllBills(), 
+                loadButtonConfigsFromDB(),
+                loadSlideshowConfigFromDB()
+            ]); 
+            
+            billRecords = records; 
+            console.log('加载账单数量:', records.length);
+            
+            if (saved) {
+                buttonConfigs = saved; 
+                console.log('加载按钮配置:', saved.length);
+            } else { 
+                buttonConfigs = JSON.parse(JSON.stringify(defaultButtonConfigs)); 
+                console.log('使用默认按钮配置');
+            } 
+            
+            // 加载轮播配置
+            if (slideshowConfig) {
+                slideshowTitle.value = slideshowConfig.title || '📷📷📷📷📷📷';
+                slideshowTitleInput.value = slideshowConfig.title || '📷 本地图片轮播';
+                slideshowSpeedInput.value = slideshowConfig.speed || 3;
+                slideshowSpeed = slideshowConfig.speed || 3;
+                
+                // 设置特效
+                if (slideshowConfig.effect) {
+                    currentEffect = slideshowConfig.effect;
+                    const effectOption = document.querySelector(`.effect-option[data-value="${slideshowConfig.effect}"]`);
+                    if (effectOption) {
+                        document.querySelectorAll('.effect-option').forEach(o => o.classList.remove('selected'));
+                        effectOption.classList.add('selected');
+                        selectedEffect.textContent = effectOption.textContent;
+                    }
+                }
+            }
+            
+            resetToFirstPage(); 
+            renderButtons(false); 
+            if (!editMode) renderCurrentView(); 
+            updateStatsDisplay(); 
+            statsDayBtn.classList.add('active'); 
+            statsMonthBtn.classList.remove('active'); 
+            statsYearBtn.classList.remove('active'); 
+            updateMonthlyChart(); 
+            
+            // 重启轮播定时器
+            if (slideshowImages.length > 1) {
+                restartSlideshowTimer();
+            }
+            
+        } catch(e){ 
+            console.error('加载数据失败:', e); 
+            buttonConfigs = JSON.parse(JSON.stringify(defaultButtonConfigs)); 
+            renderButtons(false); 
+            updateStatsDisplay(); 
+            statsDayBtn.classList.add('active'); 
+            updateMonthlyChart(); 
+        } 
+    }
+    
+    async function initDB() { 
+        try { 
+            console.log('初始化数据库...');
+            await openDB(); 
+            await loadFromDB(); 
+            updateSelectedTotal(); 
+            console.log('数据库初始化完成');
+        } catch(e){ 
+            console.error('数据库初始化失败，使用默认配置:', e); 
+            buttonConfigs = JSON.parse(JSON.stringify(defaultButtonConfigs)); 
+            renderButtons(false); 
+            updateSelectedTotal(); 
+            statsDayBtn.classList.add('active'); 
+            updateMonthlyChart(); 
+        } 
+    }
+
+    // ---------- 轮播图功能 ----------
+    function scanLocalImages() {
+        const commonNames = [
+            '1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg',
+            '6.jpg', '7.jpg', '8.jpg', '9.jpg', '10.jpg',
+            '11.jpg', '12.jpg', '13.jpg', '14.jpg', '15.jpg',
+            '16.jpg', '17.jpg', '18.jpg', '19.jpg', '20.jpg',
+            '1.png', '2.png', '3.png', '4.png', '5.png',
+            'bg.jpg', 'background.jpg', 'cover.jpg', 'photo.jpg',
+            'image1.jpg', 'image2.jpg', 'image3.jpg', 'image4.jpg', 'image5.jpg',
+            'pic1.jpg', 'pic2.jpg', 'pic3.jpg', 'pic4.jpg', 'pic5.jpg',
+            'img1.jpg', 'img2.jpg', 'img3.jpg', 'img4.jpg', 'img5.jpg',
+            '1.jpeg', '2.jpeg', '3.jpeg', '4.jpeg', '5.jpeg',
+            '1.webp', '2.webp', '3.webp', '4.webp', '5.webp',
+            '1.gif', '2.gif', '3.gif', '4.gif', '5.gif'
+        ];
+        
+        const foundUrls = [];
+        const promises = [];
+        
+        commonNames.forEach(filename => {
+            const img = new Image();
+            const promise = new Promise((resolve) => {
+                img.onload = () => {
+                    foundUrls.push(filename);
+                    resolve(true);
+                };
+                img.onerror = () => resolve(false);
+                img.src = filename;
+            });
+            promises.push(promise);
+        });
+        
+        Promise.all(promises).then(() => {
+            if (foundUrls.length > 0) {
+                slideshowImages = foundUrls;
+                currentSlideIndex = 0;
+                updateSlideshowDisplay();
+                if (slideshowImages.length > 1) startSlideshowTimer();
+            } else {
+                slideshowImages = [];
+                updateSlideshowDisplay();
+            }
+        });
+    }
+
+    // 应用特效
+    function applyEffect(element, effect, callback) {
+        if (!element) return;
+        
+        const effectClasses = [
+            'effect-fade-out', 'effect-fade-in',
+            'effect-zoom-out', 'effect-zoom-in',
+            'effect-slide-left', 'effect-slide-right', 'effect-slide-up', 'effect-slide-down',
+            'effect-rotate', 'effect-flip', 'effect-blur',
+            'effect-shake', 'effect-pulse', 'effect-3d-spin', 'effect-bounce'
+        ];
+        effectClasses.forEach(cls => element.classList.remove(cls));
+        
+        void element.offsetWidth;
+        
+        switch(effect) {
+            case 'fade':
+                element.classList.add('effect-fade-out');
+                setTimeout(() => {
+                    element.classList.remove('effect-fade-out');
+                    element.classList.add('effect-fade-in');
+                    setTimeout(() => {
+                        element.classList.remove('effect-fade-in');
+                        if (callback) callback();
+                    }, 300);
+                }, 100);
+                break;
+                
+            case 'zoom-out':
+                element.classList.add('effect-zoom-out');
+                setTimeout(() => {
+                    element.classList.remove('effect-zoom-out');
+                    if (callback) callback();
+                }, 400);
+                break;
+                
+            case 'zoom-in':
+                element.classList.add('effect-zoom-in');
+                setTimeout(() => {
+                    element.classList.remove('effect-zoom-in');
+                    if (callback) callback();
+                }, 400);
+                break;
+                
+            case 'slide-left':
+                element.classList.add('effect-slide-left');
+                setTimeout(() => {
+                    element.classList.remove('effect-slide-left');
+                    if (callback) callback();
+                }, 400);
+                break;
+                
+            case 'slide-right':
+                element.classList.add('effect-slide-right');
+                setTimeout(() => {
+                    element.classList.remove('effect-slide-right');
+                    if (callback) callback();
+                }, 400);
+                break;
+                
+            case 'slide-up':
+                element.classList.add('effect-slide-up');
+                setTimeout(() => {
+                    element.classList.remove('effect-slide-up');
+                    if (callback) callback();
+                }, 400);
+                break;
+                
+            case 'slide-down':
+                element.classList.add('effect-slide-down');
+                setTimeout(() => {
+                    element.classList.remove('effect-slide-down');
+                    if (callback) callback();
+                }, 400);
+                break;
+                
+            case 'rotate':
+                element.classList.add('effect-rotate');
+                setTimeout(() => {
+                    element.classList.remove('effect-rotate');
+                    if (callback) callback();
+                }, 500);
+                break;
+                
+            case 'flip':
+                element.classList.add('effect-flip');
+                setTimeout(() => {
+                    element.classList.remove('effect-flip');
+                    if (callback) callback();
+                }, 500);
+                break;
+                
+            case 'blur':
+                element.classList.add('effect-blur');
+                setTimeout(() => {
+                    element.classList.remove('effect-blur');
+                    if (callback) callback();
+                }, 400);
+                break;
+                
+            case 'shake':
+                element.classList.add('effect-shake');
+                setTimeout(() => {
+                    element.classList.remove('effect-shake');
+                    if (callback) callback();
+                }, 500);
+                break;
+                
+            case 'pulse':
+                element.classList.add('effect-pulse');
+                setTimeout(() => {
+                    element.classList.remove('effect-pulse');
+                    if (callback) callback();
+                }, 800);
+                break;
+                
+            case '3d-spin':
+                element.classList.add('effect-3d-spin');
+                setTimeout(() => {
+                    element.classList.remove('effect-3d-spin');
+                    if (callback) callback();
+                }, 600);
+                break;
+                
+            case 'bounce':
+                element.classList.add('effect-bounce');
+                setTimeout(() => {
+                    element.classList.remove('effect-bounce');
+                    if (callback) callback();
+                }, 600);
+                break;
+                
+            default:
+                if (callback) callback();
+        }
+    }
+
+    function updateSlideshowDisplay() {
+        if (!slideshowImages.length) {
+            slideshowImg.style.display = 'none';
+            slideshowPlaceholder.style.display = 'flex';
+            slideshowIndexSpan.innerText = '0/0';
+            return;
+        }
+        
+        if (currentSlideIndex < 0) currentSlideIndex = 0;
+        if (currentSlideIndex >= slideshowImages.length) currentSlideIndex = slideshowImages.length - 1;
+        
+        const url = slideshowImages[currentSlideIndex];
+        
+        if (isTransitioning) return;
+        
+        isTransitioning = true;
+        
+        applyEffect(slideshowImg, currentEffect, () => {
+            slideshowImg.src = url;
+            slideshowImg.style.display = 'block';
+            slideshowPlaceholder.style.display = 'none';
+            slideshowIndexSpan.innerText = `${currentSlideIndex+1}/${slideshowImages.length}`;
+            isTransitioning = false;
+        });
+    }
+
+    function startSlideshowTimer() {
+        if (slideshowTimer) clearInterval(slideshowTimer);
+        if (slideshowImages.length > 1) {
+            slideshowTimer = setInterval(() => {
+                if (!isTransitioning) {
+                    currentSlideIndex = (currentSlideIndex + 1) % slideshowImages.length;
+                    updateSlideshowDisplay();
+                }
+            }, slideshowSpeed * 1000);
+        }
+    }
+
+    function stopSlideshowTimer() {
+        if (slideshowTimer) {
+            clearInterval(slideshowTimer);
+            slideshowTimer = null;
+        }
+    }
+
+    function restartSlideshowTimer() {
+        stopSlideshowTimer();
+        startSlideshowTimer();
+    }
+
+    // 初始化自定义下拉菜单
+    function initCustomSelect() {
+        effectOptions.forEach(opt => {
+            if (opt.dataset.value === currentEffect) {
+                opt.classList.add('selected');
+                selectedEffect.textContent = opt.textContent;
+            }
+        });
+
+        effectSelectArea.addEventListener('click', (e) => {
+            e.stopPropagation();
+            effectDropdown.classList.toggle('show');
+        });
+
+        effectOptions.forEach(opt => {
+            opt.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const value = opt.dataset.value;
+                const text = opt.textContent;
+                
+                effectOptions.forEach(o => o.classList.remove('selected'));
+                opt.classList.add('selected');
+                
+                selectedEffect.textContent = text;
+                currentEffect = value;
+                
+                effectDropdown.classList.remove('show');
+                
+                // 立即应用特效到当前图片
+                if (slideshowImages.length > 0) {
+                    updateSlideshowDisplay();
+                }
+
+                // 新增：实时保存配置到数据库
+                persistSlideshowConfig();
+            });
+        });
+
+        document.addEventListener('click', () => {
+            effectDropdown.classList.remove('show');
+        });
+    }
+
+    // 新增：立即保存轮播配置到数据库并生效
+    function persistSlideshowConfig() {
+        if (!db) return;
+        const config = {
+            title: slideshowTitleInput.value,
+            speed: parseFloat(slideshowSpeedInput.value) || 3,
+            effect: currentEffect
+        };
+        saveSlideshowConfigToDB(config).catch(e => console.warn('保存轮播配置失败', e));
+    }
+
+    // 事件绑定
+    slideshowPrev.addEventListener('click', () => {
+        if (!slideshowImages.length || isTransitioning) return;
+        currentSlideIndex = (currentSlideIndex - 1 + slideshowImages.length) % slideshowImages.length;
+        updateSlideshowDisplay();
+        restartSlideshowTimer();
+    });
+
+    slideshowNext.addEventListener('click', () => {
+        if (!slideshowImages.length || isTransitioning) return;
+        currentSlideIndex = (currentSlideIndex + 1) % slideshowImages.length;
+        updateSlideshowDisplay();
+        restartSlideshowTimer();
+    });
+
+    slideshowSpeedInput.addEventListener('input', (e) => {
+        let val = parseFloat(e.target.value);
+        if (isNaN(val) || val < 0.5) val = 0.5;
+        if (val > 10) val = 10;
+        slideshowSpeed = val;
+        slideshowSpeedInput.value = val;
+        if (slideshowImages.length > 1) {
+            restartSlideshowTimer();
+        }
+        persistSlideshowConfig(); // 保存速度
+    });
+
+    slideshowTitleInput.addEventListener('input', (e) => {
+        slideshowTitle.value = e.target.value;
+        persistSlideshowConfig();
+    });
+
+    slideshowTitle.addEventListener('input', (e) => {
+        slideshowTitleInput.value = e.target.value;
+        persistSlideshowConfig();
+    });
+
+    // 初始化
+    initCustomSelect();
+
+    addNormalBtnNew.addEventListener('click', ()=>{ if(editMode) addNewButton(false); });
+    addRepairBtnNew.addEventListener('click', ()=>{ if(editMode) addNewButton(true); });
+    exportDataBtnNew.addEventListener('click', exportData);
+    importDataBtnNew.addEventListener('click', ()=> importFile.click());
+    importFile.addEventListener('change', (e)=>{ if(e.target.files[0]){ importData(e.target.files[0]); importFile.value=''; } });
+
+    prevBtn.addEventListener('click', ()=>{ 
+
+        if(currentPage > 1) { 
+            currentPage--; 
+            activeDeleteItem = null; 
+            activeEditItem = null; 
+            renderCurrentView(); 
+        } 
+    });
+    
+    nextBtn.addEventListener('click', ()=>{ 
+    
+        let totalPages = 1; 
+        if (currentViewLevel === 'main') {
+            if (currentStatsRange === 'day') totalPages = Math.max(1, Math.ceil(billRecords.length / PAGE_SIZE));
+            else if (currentStatsRange === 'month') {
+                const months = [...new Set(billRecords.map(r => r.datetime.slice(0,7)))];
+                totalPages = Math.max(1, Math.ceil(months.length / PAGE_SIZE));
+            } else {
+                const years = [...new Set(billRecords.map(r => r.datetime.slice(0,4)))];
+                totalPages = Math.max(1, Math.ceil(years.length / PAGE_SIZE));
+            }
+        } else if (currentViewLevel === 'month-summary' && currentDetailsParam) {
+            const monthRecords = billRecords.filter(r => r.datetime.slice(0,7) === currentDetailsParam);
+            const items = [...new Set(monthRecords.map(r => r.name))];
+            totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+        } else if (currentViewLevel === 'year-detail' && currentDetailsParam) {
+            const months = [...new Set(billRecords.filter(r => r.datetime.slice(0,4) === currentDetailsParam).map(r => r.datetime.slice(0,7)))];
+            totalPages = Math.max(1, Math.ceil(months.length / PAGE_SIZE));
+        }
+        if(currentPage < totalPages) { 
+            currentPage++; 
+            activeDeleteItem = null; 
+            activeEditItem = null; 
+            renderCurrentView(); 
+        } 
+    });
+
+    statsDayBtn.addEventListener('click', ()=>{ 
+       
+        [statsDayBtn, statsMonthBtn, statsYearBtn].forEach(b => b.classList.remove('active')); 
+        statsDayBtn.classList.add('active'); 
+        currentStatsRange = 'day'; 
+        resetToFirstPage(); 
+        renderCurrentView(); 
+    });
+    
+    statsMonthBtn.addEventListener('click', ()=>{ 
+        
+        [statsDayBtn, statsMonthBtn, statsYearBtn].forEach(b => b.classList.remove('active')); 
+        statsMonthBtn.classList.add('active'); 
+        currentStatsRange = 'month'; 
+        resetToFirstPage(); 
+        renderCurrentView(); 
+    });
+    
+    statsYearBtn.addEventListener('click', ()=>{ 
+
+        [statsDayBtn, statsMonthBtn, statsYearBtn].forEach(b => b.classList.remove('active')); 
+        statsYearBtn.classList.add('active'); 
+        currentStatsRange = 'year'; 
+        resetToFirstPage(); 
+        renderCurrentView(); 
+    });
+
+    // 启动应用
+    window.addEventListener('load', ()=>{ 
+        console.log('页面加载完成，启动应用...');
+        initDB();
+        setTimeout(() => {
+            scanLocalImages();
+        }, 500);
+    });
+})();
+</script>
+</body>
 </html>
